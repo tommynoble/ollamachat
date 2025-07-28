@@ -6,21 +6,24 @@ const fs = require('fs');
 const chatMessages = document.getElementById('chat-messages');
 const messageInput = document.getElementById('message-input');
 const sendButton = document.getElementById('send-button');
+const modelSelect = document.getElementById('model-select');
+const refreshModelsBtn = document.getElementById('refresh-models');
 const statusDot = document.getElementById('status-dot');
 const statusText = document.getElementById('status-text');
-const modelSelect = document.getElementById('model-select');
-const refreshButton = document.getElementById('refresh-models');
-const loadingOverlay = document.getElementById('loading-overlay');
 const settingsBtn = document.getElementById('settings-btn');
 const settingsModal = document.getElementById('settings-modal');
 const closeSettingsBtn = document.getElementById('close-settings');
 const refreshDrivesBtn = document.getElementById('refresh-drives');
 const drivesList = document.getElementById('drives-list');
 const autoRefreshIndicator = document.getElementById('auto-refresh-indicator');
-
-// Model browser elements
 const modelsGrid = document.getElementById('models-grid');
 const downloadedModelsList = document.getElementById('downloaded-models-list');
+
+// Model search elements
+const modelSearchInput = document.getElementById('model-search-input');
+const searchModelsBtn = document.getElementById('search-models-btn');
+const clearSearchBtn = document.getElementById('clear-search-btn');
+const searchStatus = document.getElementById('search-status');
 
 // State
 let isLoading = false;
@@ -119,12 +122,12 @@ function setupEventListeners() {
     });
     
     // Refresh models button
-    refreshButton.addEventListener('click', async () => {
-        refreshButton.style.transform = 'rotate(180deg)';
+    refreshModelsBtn.addEventListener('click', async () => {
+        refreshModelsBtn.style.transform = 'rotate(180deg)';
         await loadModels();
         await checkStatus();
         setTimeout(() => {
-            refreshButton.style.transform = 'rotate(0deg)';
+            refreshModelsBtn.style.transform = 'rotate(0deg)';
         }, 300);
     });
     
@@ -138,10 +141,19 @@ function setupEventListeners() {
         }
     });
 
-    // Settings modal events
+    // Settings modal
     settingsBtn.addEventListener('click', openSettings);
     closeSettingsBtn.addEventListener('click', closeSettings);
     refreshDrivesBtn.addEventListener('click', refreshDrives);
+    
+    // Model search
+    searchModelsBtn.addEventListener('click', searchModels);
+    clearSearchBtn.addEventListener('click', showPopularModels);
+    modelSearchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            searchModels();
+        }
+    });
     
     // Close modal when clicking outside
     settingsModal.addEventListener('click', (e) => {
@@ -496,12 +508,15 @@ ${result.originalPath}`);
 }
 
 // Model Browser Functions
+let isSearchMode = false;
+
 async function loadAvailableModels() {
     try {
         const result = await ipcRenderer.invoke('get-available-models');
         
         if (result.success) {
-            displayAvailableModels(result.models);
+            isSearchMode = false;
+            displayAvailableModels(result.models, 'Popular Models');
         } else {
             modelsGrid.innerHTML = '<div class="error-message">Failed to load models: ' + result.error + '</div>';
         }
@@ -510,7 +525,69 @@ async function loadAvailableModels() {
     }
 }
 
-function displayAvailableModels(models) {
+async function searchModels() {
+    const searchQuery = modelSearchInput.value.trim();
+    
+    if (!searchQuery) {
+        alert('Please enter a search term');
+        return;
+    }
+    
+    // Update UI to show searching
+    searchModelsBtn.disabled = true;
+    searchModelsBtn.textContent = 'Searching...';
+    showSearchStatus('Searching Ollama library...', 'searching');
+    modelsGrid.innerHTML = '<div class="loading-models">Searching for models...</div>';
+    
+    try {
+        const result = await ipcRenderer.invoke('search-ollama-library', searchQuery);
+        
+        if (result.success) {
+            isSearchMode = true;
+            const resultCount = result.models.length;
+            const statusMsg = resultCount > 0 
+                ? `Found ${resultCount} model${resultCount === 1 ? '' : 's'} matching "${searchQuery}"`
+                : `No models found matching "${searchQuery}"`;
+                
+            showSearchStatus(statusMsg, 'success');
+            displayAvailableModels(result.models, `Search Results for "${searchQuery}"`);
+            clearSearchBtn.style.display = 'inline-block';
+        } else {
+            showSearchStatus('Search failed: ' + result.error, 'error');
+            modelsGrid.innerHTML = '<div class="error-message">Search failed: ' + result.error + '</div>';
+        }
+    } catch (error) {
+        showSearchStatus('Search error: ' + error.message, 'error');
+        modelsGrid.innerHTML = '<div class="error-message">Search error: ' + error.message + '</div>';
+    } finally {
+        searchModelsBtn.disabled = false;
+        searchModelsBtn.textContent = 'Search';
+    }
+}
+
+async function showPopularModels() {
+    modelSearchInput.value = '';
+    clearSearchBtn.style.display = 'none';
+    hideSearchStatus();
+    await loadAvailableModels();
+}
+
+function showSearchStatus(message, type) {
+    searchStatus.textContent = message;
+    searchStatus.className = `search-status ${type}`;
+    searchStatus.style.display = 'block';
+}
+
+function hideSearchStatus() {
+    searchStatus.style.display = 'none';
+}
+
+function displayAvailableModels(models, title) {
+    if (models.length === 0) {
+        modelsGrid.innerHTML = '<div class="no-models">No models found</div>';
+        return;
+    }
+    
     modelsGrid.innerHTML = '';
     
     models.forEach(model => {
@@ -528,10 +605,19 @@ function createModelCard(model, variant) {
     const fullName = `${model.name}:${variant}`;
     const isDownloading = downloadingModels.has(fullName);
     
+    // Different styling for search results vs popular models
+    const isFromSearch = model.source === 'ollama-library';
+    const cardClass = isFromSearch ? 'model-card search-result' : 'model-card';
+    card.className = cardClass;
+    
+    // Show installed status for search results
+    const installedBadge = model.isInstalled ? '<span class="installed-badge">✓ Installed</span>' : '';
+    
     card.innerHTML = `
         <div class="model-header">
             <div class="model-name">${model.name}:${variant}</div>
             <div class="model-size">${model.sizes[variant]}</div>
+            ${installedBadge}
         </div>
         <div class="model-description">${model.description}</div>
         <div class="model-tags">
@@ -540,9 +626,10 @@ function createModelCard(model, variant) {
         <div class="download-info">
             <small>Download time: ~${model.downloadTime[variant]}</small>
         </div>
-        <button class="download-btn" ${isDownloading ? 'disabled' : ''} 
+        <button class="download-btn ${model.isInstalled ? 'installed' : ''}" 
+                ${isDownloading || model.isInstalled ? 'disabled' : ''} 
                 onclick="downloadModel('${model.name}', '${variant}', this)">
-            ${isDownloading ? 'Downloading...' : 'Download Model'}
+            ${isDownloading ? 'Downloading...' : model.isInstalled ? 'Already Installed' : 'Download Model'}
         </button>
         <div class="download-progress" style="display: none;">
             <div class="download-progress-bar" style="width: 0%"></div>

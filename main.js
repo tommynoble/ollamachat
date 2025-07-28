@@ -163,6 +163,116 @@ ipcMain.handle('get-available-models', async () => {
     }
 });
 
+// Search Ollama library for additional models
+ipcMain.handle('search-ollama-library', async (event, searchQuery) => {
+    try {
+        console.log('Searching Ollama library for:', searchQuery);
+        
+        // Use Ollama's library search functionality
+        const { spawn } = require('child_process');
+        
+        return new Promise((resolve) => {
+            const ollamaProcess = spawn('ollama', ['list', '--format', 'json']);
+            let output = '';
+            let error = '';
+            
+            // First get locally installed models
+            ollamaProcess.stdout.on('data', (data) => {
+                output += data.toString();
+            });
+            
+            ollamaProcess.stderr.on('data', (data) => {
+                error += data.toString();
+            });
+            
+            ollamaProcess.on('close', (localCode) => {
+                let localModels = [];
+                if (localCode === 0 && output.trim()) {
+                    try {
+                        const parsed = JSON.parse(output);
+                        localModels = parsed.models || [];
+                    } catch (e) {
+                        console.log('Could not parse local models:', e.message);
+                    }
+                }
+                
+                // Now search the library using ollama show
+                const searchProcess = spawn('curl', [
+                    '-s',
+                    'https://registry.ollama.ai/v2/_catalog'
+                ]);
+                
+                let searchOutput = '';
+                let searchError = '';
+                
+                searchProcess.stdout.on('data', (data) => {
+                    searchOutput += data.toString();
+                });
+                
+                searchProcess.stderr.on('data', (data) => {
+                    searchError += data.toString();
+                });
+                
+                searchProcess.on('close', (searchCode) => {
+                    if (searchCode === 0) {
+                        try {
+                            const catalog = JSON.parse(searchOutput);
+                            let availableModels = catalog.repositories || [];
+                            
+                            // Filter by search query if provided
+                            if (searchQuery && searchQuery.trim()) {
+                                const query = searchQuery.toLowerCase();
+                                availableModels = availableModels.filter(model => 
+                                    model.toLowerCase().includes(query)
+                                );
+                            }
+                            
+                            // Format models for our UI (limit to first 20 results)
+                            const formattedModels = availableModels.slice(0, 20).map(modelName => {
+                                // Extract base name and potential variants
+                                const isInstalled = localModels.some(local => 
+                                    local.name && local.name.startsWith(modelName)
+                                );
+                                
+                                return {
+                                    name: modelName,
+                                    variants: ['latest'], // Default variant
+                                    description: `${modelName} - Available from Ollama library`,
+                                    tags: ['community'],
+                                    sizes: { 'latest': 'Unknown size' },
+                                    downloadTime: { 'latest': 'Varies' },
+                                    isInstalled: isInstalled,
+                                    source: 'ollama-library'
+                                };
+                            });
+                            
+                            resolve({ 
+                                success: true, 
+                                models: formattedModels,
+                                query: searchQuery 
+                            });
+                            
+                        } catch (parseError) {
+                            resolve({ 
+                                success: false, 
+                                error: 'Failed to parse Ollama registry response: ' + parseError.message 
+                            });
+                        }
+                    } else {
+                        resolve({ 
+                            success: false, 
+                            error: 'Failed to search Ollama registry: ' + searchError 
+                        });
+                    }
+                });
+            });
+        });
+        
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
 // Download a model
 ipcMain.handle('download-model', async (event, modelName, variant) => {
     return new Promise((resolve) => {
