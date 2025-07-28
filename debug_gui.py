@@ -1,0 +1,368 @@
+#!/usr/bin/env python3
+"""
+Debug version of Ollama Chat GUI to identify the issue
+"""
+
+import tkinter as tk
+from tkinter import ttk, scrolledtext, messagebox
+import threading
+import os
+import json
+import traceback
+
+print("Starting debug GUI...")
+
+try:
+    print("Importing OllamaChat...")
+    from ollama_chat import OllamaChat
+    print("OllamaChat imported successfully")
+except Exception as e:
+    print(f"Error importing OllamaChat: {e}")
+    traceback.print_exc()
+    OllamaChat = None
+
+class DebugOllamaChatGUI:
+    def __init__(self, root):
+        print("Initializing DebugOllamaChatGUI...")
+        self.root = root
+        self.root.title("Debug Ollama Chat GUI")
+        self.root.geometry("700x600")
+        self.root.minsize(500, 400)
+        
+        try:
+            print("Creating debug label...")
+            # Add a visible label at the top for debugging
+            self.debug_label = tk.Label(self.root, text="Debug GUI Loaded", bg="lightblue", font=("Arial", 16, "bold"))
+            self.debug_label.pack(fill=tk.X)
+            print("Debug label created and packed")
+
+            if OllamaChat is None:
+                print("OllamaChat is None, creating dummy chat app")
+                self.chat_app = None
+                self.models = []
+                self.status_var = tk.StringVar(value="Import Error")
+                self.model_var = tk.StringVar(value="none")
+                self.temperature_var = tk.DoubleVar(value=0.7)
+                self.system_prompt_var = tk.StringVar(value="Error loading config")
+            else:
+                print("Creating OllamaChat instance...")
+                self.chat_app = OllamaChat()
+                print("OllamaChat instance created")
+                
+                print("Getting available models...")
+                self.models = self.chat_app.get_available_models()
+                print(f"Models: {self.models}")
+                
+                self.status_var = tk.StringVar()
+                self.model_var = tk.StringVar(value=self.chat_app.config["model"])
+                self.temperature_var = tk.DoubleVar(value=self.chat_app.config["temperature"])
+                self.system_prompt_var = tk.StringVar(value=self.chat_app.config["system_prompt"])
+                print("Variables created")
+
+            print("Creating widgets...")
+            self.create_widgets()
+            print("Widgets created")
+            
+            if self.chat_app:
+                print("Updating status...")
+                self.update_status()
+                print("Status updated")
+                
+                print("Refreshing models...")
+                self.refresh_models()
+                print("Models refreshed")
+                
+                print("Loading history...")
+                self.load_history_to_gui()
+                print("History loaded")
+            
+            print("Initialization complete!")
+            
+        except Exception as e:
+            print(f"Error during initialization: {e}")
+            traceback.print_exc()
+            messagebox.showerror("Initialization Error", f"An error occurred during GUI initialization:\n{e}\n\n{traceback.format_exc()}")
+
+    def create_widgets(self):
+        try:
+            print("Creating menu...")
+            # Menu
+            menubar = tk.Menu(self.root)
+            filemenu = tk.Menu(menubar, tearoff=0)
+            filemenu.add_command(label="Save Chat History", command=self.save_chat_history)
+            filemenu.add_command(label="Load Chat History", command=self.load_chat_history)
+            filemenu.add_separator()
+            filemenu.add_command(label="Exit", command=self.root.quit)
+            menubar.add_cascade(label="File", menu=filemenu)
+            self.root.config(menu=menubar)
+            print("Menu created")
+
+            print("Creating top frame...")
+            # Top frame for model and status
+            top_frame = ttk.Frame(self.root)
+            top_frame.pack(fill=tk.X, padx=8, pady=4)
+            print("Top frame created and packed")
+
+            ttk.Label(top_frame, text="Model:").pack(side=tk.LEFT)
+            print("Model label created")
+            
+            self.model_combo = ttk.Combobox(top_frame, textvariable=self.model_var, values=self.models, width=18, state="readonly")
+            self.model_combo.pack(side=tk.LEFT, padx=4)
+            print("Model combo created")
+            
+            ttk.Button(top_frame, text="Refresh Models", command=self.refresh_models).pack(side=tk.LEFT, padx=4)
+            print("Refresh button created")
+            
+            ttk.Label(top_frame, text="Temperature:").pack(side=tk.LEFT, padx=(16,0))
+            print("Temperature label created")
+            
+            self.temp_spin = ttk.Spinbox(top_frame, from_=0.0, to=1.5, increment=0.05, textvariable=self.temperature_var, width=5, command=self.change_temperature)
+            self.temp_spin.pack(side=tk.LEFT, padx=4)
+            print("Temperature spinbox created")
+            
+            ttk.Label(top_frame, text="Status:").pack(side=tk.LEFT, padx=(16,0))
+            print("Status label created")
+            
+            self.status_label = ttk.Label(top_frame, textvariable=self.status_var, foreground="green")
+            self.status_label.pack(side=tk.LEFT, padx=4)
+            print("Status label created")
+
+            print("Creating system prompt frame...")
+            # System prompt
+            sys_frame = ttk.Frame(self.root)
+            sys_frame.pack(fill=tk.X, padx=8, pady=2)
+            print("System frame created and packed")
+            
+            ttk.Label(sys_frame, text="System Prompt:").pack(side=tk.LEFT)
+            print("System prompt label created")
+            
+            self.sys_entry = ttk.Entry(sys_frame, textvariable=self.system_prompt_var, width=60)
+            self.sys_entry.pack(side=tk.LEFT, padx=4, fill=tk.X, expand=True)
+            print("System prompt entry created")
+            
+            ttk.Button(sys_frame, text="Set", command=self.change_system_prompt).pack(side=tk.LEFT, padx=4)
+            print("Set button created")
+
+            print("Creating chat text area...")
+            # Chat history area
+            self.chat_text = scrolledtext.ScrolledText(self.root, wrap=tk.WORD, state=tk.DISABLED, height=25)
+            self.chat_text.pack(fill=tk.BOTH, expand=True, padx=8, pady=4)
+            print("Chat text area created and packed")
+
+            print("Creating bottom frame...")
+            # Bottom frame for input
+            bottom_frame = ttk.Frame(self.root)
+            bottom_frame.pack(fill=tk.X, padx=8, pady=4)
+            print("Bottom frame created and packed")
+            
+            self.input_var = tk.StringVar()
+            self.input_entry = ttk.Entry(bottom_frame, textvariable=self.input_var)
+            self.input_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0,8))
+            self.input_entry.bind("<Return>", self.send_message_event)
+            print("Input entry created")
+            
+            send_btn = ttk.Button(bottom_frame, text="Send", command=self.send_message)
+            send_btn.pack(side=tk.LEFT)
+            print("Send button created")
+            
+            print("All widgets created successfully!")
+            
+        except Exception as e:
+            print(f"Error creating widgets: {e}")
+            traceback.print_exc()
+            messagebox.showerror("Widget Error", f"An error occurred while creating widgets:\n{e}\n\n{traceback.format_exc()}")
+
+    def update_status(self):
+        if not self.chat_app:
+            return
+        try:
+            installed = self.chat_app.check_ollama_installation()
+            running = self.chat_app.check_ollama_server()
+            if not installed:
+                self.status_var.set("Ollama not installed")
+                self.status_label.config(foreground="red")
+            elif not running:
+                self.status_var.set("Offline")
+                self.status_label.config(foreground="red")
+            else:
+                self.status_var.set("Online")
+                self.status_label.config(foreground="green")
+            # Schedule next status update
+            self.root.after(5000, self.update_status)
+        except Exception as e:
+            print(f"Error updating status: {e}")
+            self.status_var.set("Error")
+
+    def refresh_models(self):
+        if not self.chat_app:
+            return
+        try:
+            self.models = self.chat_app.get_available_models()
+            self.model_combo["values"] = self.models
+            if self.chat_app.config["model"] in self.models:
+                self.model_var.set(self.chat_app.config["model"])
+            elif self.models:
+                self.model_var.set(self.models[0])
+                self.change_model()
+        except Exception as e:
+            print(f"Error refreshing models: {e}")
+
+    def change_model(self, event=None):
+        if not self.chat_app:
+            return
+        try:
+            model = self.model_var.get()
+            if model not in self.models:
+                if messagebox.askyesno("Pull Model", f"Model '{model}' not found. Pull it now?"):
+                    self.append_chat("System", f"Pulling model '{model}'...")
+                    threading.Thread(target=self.pull_model_thread, args=(model,), daemon=True).start()
+                return
+            self.chat_app.config["model"] = model
+            self.chat_app.save_config(self.chat_app.config)
+            self.append_chat("System", f"Switched to model: {model}")
+        except Exception as e:
+            print(f"Error changing model: {e}")
+
+    def pull_model_thread(self, model):
+        if not self.chat_app:
+            return
+        try:
+            success = self.chat_app.pull_model(model)
+            if success:
+                self.refresh_models()
+                self.append_chat("System", f"Model '{model}' pulled and ready.")
+            else:
+                self.append_chat("System", f"Failed to pull model '{model}'.")
+        except Exception as e:
+            print(f"Error pulling model: {e}")
+
+    def change_temperature(self):
+        if not self.chat_app:
+            return
+        try:
+            temp = self.temperature_var.get()
+            self.chat_app.config["temperature"] = temp
+            self.chat_app.save_config(self.chat_app.config)
+            self.append_chat("System", f"Temperature set to {temp}")
+        except Exception as e:
+            print(f"Error changing temperature: {e}")
+
+    def change_system_prompt(self):
+        if not self.chat_app:
+            return
+        try:
+            prompt = self.system_prompt_var.get()
+            self.chat_app.config["system_prompt"] = prompt
+            self.chat_app.save_config(self.chat_app.config)
+            self.append_chat("System", "System prompt updated.")
+        except Exception as e:
+            print(f"Error changing system prompt: {e}")
+
+    def send_message_event(self, event):
+        self.send_message()
+
+    def send_message(self):
+        if not self.chat_app:
+            self.append_chat("System", "Chat app not available")
+            return
+        try:
+            user_msg = self.input_var.get().strip()
+            if not user_msg:
+                return
+            self.input_var.set("")
+            self.append_chat("You", user_msg)
+            self.chat_app.add_to_history("user", user_msg)
+            threading.Thread(target=self.get_response_thread, args=(user_msg,), daemon=True).start()
+        except Exception as e:
+            print(f"Error sending message: {e}")
+
+    def get_response_thread(self, user_msg):
+        if not self.chat_app:
+            return
+        try:
+            self.append_chat("Assistant", "...", temp=True)
+            response = self.chat_app.send_message(user_msg, self.chat_app.config.get("system_prompt"))
+            self.chat_app.add_to_history("assistant", response)
+            self.replace_last_temp_message(response)
+        except Exception as e:
+            print(f"Error getting response: {e}")
+
+    def append_chat(self, sender, message, temp=False):
+        try:
+            self.chat_text.config(state=tk.NORMAL)
+            if temp:
+                self.chat_text.insert(tk.END, f"{sender}: {message}\n", ("temp",))
+            else:
+                self.chat_text.insert(tk.END, f"{sender}: {message}\n")
+            self.chat_text.see(tk.END)
+            self.chat_text.config(state=tk.DISABLED)
+        except Exception as e:
+            print(f"Error appending chat: {e}")
+
+    def replace_last_temp_message(self, new_message):
+        try:
+            self.chat_text.config(state=tk.NORMAL)
+            # Remove last line (the temp message)
+            lines = self.chat_text.get("1.0", tk.END).splitlines()
+            if lines and lines[-1].startswith("Assistant: ..."):
+                lines[-1] = f"Assistant: {new_message}"
+                self.chat_text.delete("1.0", tk.END)
+                self.chat_text.insert(tk.END, "\n".join(lines) + "\n")
+            self.chat_text.see(tk.END)
+            self.chat_text.config(state=tk.DISABLED)
+        except Exception as e:
+            print(f"Error replacing temp message: {e}")
+
+    def save_chat_history(self):
+        if not self.chat_app:
+            return
+        try:
+            from tkinter import filedialog
+            file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON Files", "*.json")])
+            if file_path:
+                with open(file_path, 'w') as f:
+                    json.dump(self.chat_app.chat_history, f, indent=2)
+                messagebox.showinfo("Success", f"Chat history saved to {file_path}")
+        except Exception as e:
+            print(f"Error saving chat history: {e}")
+
+    def load_chat_history(self):
+        if not self.chat_app:
+            return
+        try:
+            from tkinter import filedialog
+            file_path = filedialog.askopenfilename(filetypes=[("JSON Files", "*.json")])
+            if file_path:
+                with open(file_path, 'r') as f:
+                    self.chat_app.chat_history = json.load(f)
+                self.load_history_to_gui()
+                messagebox.showinfo("Success", f"Chat history loaded from {file_path}")
+        except Exception as e:
+            print(f"Error loading chat history: {e}")
+
+    def load_history_to_gui(self):
+        if not self.chat_app:
+            return
+        try:
+            self.chat_text.config(state=tk.NORMAL)
+            self.chat_text.delete("1.0", tk.END)
+            for entry in self.chat_app.chat_history:
+                sender = "You" if entry["role"] == "user" else "Assistant"
+                self.chat_text.insert(tk.END, f"{sender}: {entry['content']}\n")
+            self.chat_text.see(tk.END)
+            self.chat_text.config(state=tk.DISABLED)
+        except Exception as e:
+            print(f"Error loading history to GUI: {e}")
+
+if __name__ == "__main__":
+    print("Creating root window...")
+    root = tk.Tk()
+    print("Root window created")
+    
+    print("Creating app...")
+    app = DebugOllamaChatGUI(root)
+    print("App created")
+    
+    print("Starting mainloop...")
+    root.mainloop()
+    print("Mainloop ended") 
