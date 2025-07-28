@@ -10,6 +10,9 @@ const modelSelect = document.getElementById('model-select');
 const refreshModelsBtn = document.getElementById('refresh-models');
 const statusDot = document.getElementById('status-dot');
 const statusText = document.getElementById('status-text');
+const modelManagerBtn = document.getElementById('model-manager-btn');
+const modelManagerModal = document.getElementById('model-manager-modal');
+const closeModelManagerBtn = document.getElementById('close-model-manager');
 const settingsBtn = document.getElementById('settings-btn');
 const settingsModal = document.getElementById('settings-modal');
 const closeSettingsBtn = document.getElementById('close-settings');
@@ -17,10 +20,13 @@ const refreshDrivesBtn = document.getElementById('refresh-drives');
 const drivesList = document.getElementById('drives-list');
 const autoRefreshIndicator = document.getElementById('auto-refresh-indicator');
 const modelsGrid = document.getElementById('models-grid');
+const loadingOverlay = document.getElementById('loading-overlay');
 
 // Global variables
 let autoRefreshInterval = null;
 let activeDrive = null;
+let isLoading = false;
+let currentModel = null;
 const downloadingModels = new Set();
 
 // Initialize app
@@ -29,24 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
 });
 
-function setupEventListeners() {
-    // Chat functionality
-    sendButton.addEventListener('click', sendMessage);
-    messageInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
-    
-    // Model management
-    refreshModelsBtn.addEventListener('click', loadAvailableModels);
-    
-    // Settings modal
-    settingsBtn.addEventListener('click', openSettings);
-    closeSettingsBtn.addEventListener('click', closeSettings);
-    refreshDrivesBtn.addEventListener('click', refreshDrives);
-}
+
 
 // Check Ollama status
 async function checkOllamaStatus() {
@@ -125,6 +114,10 @@ function setupEventListeners() {
         refreshModelsBtn.style.transform = 'rotate(180deg)';
         await loadModels();
         await checkOllamaStatus();
+        // Also refresh the model browser if it's open
+        if (modelManagerModal.style.display === 'flex') {
+            loadAvailableModels();
+        }
         setTimeout(() => {
             refreshModelsBtn.style.transform = 'rotate(0deg)';
         }, 300);
@@ -140,13 +133,16 @@ function setupEventListeners() {
         }
     });
 
+    // Model management modal
+    modelManagerBtn.addEventListener('click', openModelManager);
+    closeModelManagerBtn.addEventListener('click', closeModelManager);
+    
     // Settings modal
     settingsBtn.addEventListener('click', openSettings);
     closeSettingsBtn.addEventListener('click', closeSettings);
     refreshDrivesBtn.addEventListener('click', refreshDrives);
     
     // Model browser functionality
-    refreshModelsBtn.addEventListener('click', loadAvailableModels);
     document.querySelectorAll('.suggestion-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const message = btn.getAttribute('data-message');
@@ -299,14 +295,21 @@ function setLoading(loading) {
     updateSendButton();
 }
 
+// Model Management Functions
+async function openModelManager() {
+    modelManagerModal.style.display = 'flex';
+    loadAvailableModels();
+}
+
+function closeModelManager() {
+    modelManagerModal.style.display = 'none';
+}
+
 // Settings Modal Functions
 let driveRefreshInterval = null;
 
 async function openSettings() {
     settingsModal.style.display = 'flex';
-    
-    // Load available models for download
-    loadAvailableModels();
     
     // Refresh drives list
     refreshDrives();
@@ -811,7 +814,4 @@ async function deleteModel(modelName) {
 }
 
 // Periodic status check
-setInterval(checkOllamaStatus, 30000); // Check every 30 seconds
-
-// Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', initialize); 
+setInterval(checkOllamaStatus, 30000); // Check every 30 seconds 
