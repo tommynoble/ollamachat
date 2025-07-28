@@ -1,6 +1,29 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
-const { spawn } = require('child_process');
 const path = require('path');
+const { spawn } = require('child_process');
+const fs = require('fs');
+
+// Initialize external drive settings on startup
+function initializeExternalDriveSettings() {
+    try {
+        const configPath = path.join(__dirname, 'ollama-config.json');
+        if (fs.existsSync(configPath)) {
+            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            if (config.usingExternal && config.externalPath) {
+                // Automatically set the environment variable for Ollama
+                process.env.OLLAMA_MODELS = config.externalPath;
+                console.log(`🎯 Auto-configured Ollama to use external drive: ${config.externalPath}`);
+                return config.externalPath;
+            }
+        }
+    } catch (error) {
+        console.log('No external drive config found, using default path');
+    }
+    return null;
+}
+
+// Call this during app initialization
+const externalPath = initializeExternalDriveSettings();
 
 let mainWindow;
 let pythonProcess = null;
@@ -170,38 +193,153 @@ ipcMain.handle('download-model', async (event, modelName, variant) => {
         const fullModelName = variant ? `${modelName}:${variant}` : modelName;
         console.log(`Starting download of ${fullModelName}`);
         
-        // Set OLLAMA_MODELS environment variable if external drive is configured
+        // Always use external drive if configured (automatic detection)
         let env = { ...process.env };
-        try {
-            const configPath = path.join(__dirname, 'ollama-config.json');
-            if (require('fs').existsSync(configPath)) {
-                const config = JSON.parse(require('fs').readFileSync(configPath, 'utf8'));
-                if (config.externalPath) {
+        const configPath = path.join(__dirname, 'ollama-config.json');
+        
+        if (fs.existsSync(configPath)) {
+            try {
+                const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+                if (config.usingExternal && config.externalPath) {
                     env.OLLAMA_MODELS = config.externalPath;
+                    console.log(`📥 Downloading ${fullModelName} to external drive: ${config.externalPath}`);
+                } else {
+                    console.log(`📥 Downloading ${fullModelName} to default location`);
                 }
+            } catch (error) {
+                console.log('Error reading external drive config, using default path');
             }
-        } catch (e) {
-            console.log('No external drive config found, using default path');
+        } else {
+            console.log(`📥 Downloading ${fullModelName} to default location (no external drive configured)`);
         }
         
         const ollamaProcess = spawn('ollama', ['pull', fullModelName], { env });
         let output = '';
         let error = '';
+        let progressTimer = null;
+        let fallbackProgress = 0;
+        
+        // Start fallback progress timer in case Ollama doesn't provide detailed progress
+        progressTimer = setInterval(() => {
+            fallbackProgress += 2; // Increment by 2% every interval
+            if (fallbackProgress < 85) { // Don't go past 85% until we know it's complete
+                event.sender.send('download-progress', {
+                    model: fullModelName,
+                    status: 'downloading',
+                    message: `Downloading... ${fallbackProgress}%`,
+                    percentage: fallbackProgress,
+                    speed: null,
+                    size: null
+                });
+            }
+        }, 1500); // Update every 1.5 seconds
         
         ollamaProcess.stdout.on('data', (data) => {
             const text = data.toString();
             output += text;
             
-            // Parse progress from ollama output
+            // Parse detailed progress from ollama output
             const lines = text.split('\n');
             for (const line of lines) {
-                if (line.includes('pulling') || line.includes('downloading')) {
-                    // Send progress updates to renderer
-                    event.sender.send('download-progress', {
+                if (line.trim()) {
+                    // Parse different types of progress messages
+                    let progressData = {
                         model: fullModelName,
                         status: 'downloading',
-                        message: line.trim()
-                    });
+                        message: line.trim(),
+                        percentage: null,
+                        speed: null,
+                        size: null
+                    };
+                    
+                    // More comprehensive progress parsing for Ollama output
+                    
+                    // Look for percentage patterns (various formats)
+                    const percentPatterns = [
+                        /(\d+)%/,                    // "45%"
+                        /(\d+)\s*percent/i,          // "45 percent"
+                        /(\d+)\/\d+/                 // "45/100" style
+                    ];
+                    
+                    for (const pattern of percentPatterns) {
+                        const match = line.match(pattern);
+                        if (match) {
+                            progressData.percentage = parseInt(match[1]);
+                            break;
+                        }
+                    }
+                    
+                    // Look for download speed patterns
+                    const speedPatterns = [
+                        /([\d.]+\s*[KMGT]?B\/s)/i,       // "2.1 MB/s"
+                        /([\d.]+\s*[KMGT]?bps)/i,        // "2.1 Mbps"
+                        /(\d+\.\d+\s*MB\/s)/i            // "2.1 MB/s"
+                    ];
+                    
+                    for (const pattern of speedPatterns) {
+                        const match = line.match(pattern);
+                        if (match) {
+                            progressData.speed = match[1];
+                            break;
+                        }
+                    }
+                    
+                    // Look for size patterns
+                    const sizePatterns = [
+                        /([\d.]+\s*[KMGT]?B)(?!\/)/, // "1.2 GB" but not "1.2 GB/s"
+                        /(\d+\.\d+\s*MB)/i,
+                        /(\d+\.\d+\s*GB)/i
+                    ];
+                    
+                    for (const pattern of sizePatterns) {
+                        const match = line.match(pattern);
+                        if (match && !match[0].includes('/')) { // Exclude speed measurements
+                            progressData.size = match[1];
+                            break;
+                        }
+                    }
+                    
+                    // Determine status and message based on content
+                    const lowerLine = line.toLowerCase();
+                    
+                    if (lowerLine.includes('pulling') && lowerLine.includes('manifest')) {
+                        progressData.status = 'preparing';
+                        progressData.message = 'Preparing download...';
+                        progressData.percentage = progressData.percentage || 5;
+                    } else if (lowerLine.includes('downloading') || lowerLine.includes('pulling')) {
+                        progressData.status = 'downloading';
+                        if (progressData.percentage) {
+                            progressData.message = `Downloading ${progressData.percentage}%`;
+                        } else {
+                            progressData.message = 'Downloading...';
+                        }
+                    } else if (lowerLine.includes('verifying') || lowerLine.includes('verify')) {
+                        progressData.status = 'verifying';
+                        progressData.message = 'Verifying download...';
+                        progressData.percentage = progressData.percentage || 90;
+                    } else if (lowerLine.includes('success') || lowerLine.includes('complete')) {
+                        progressData.status = 'completed';
+                        progressData.message = 'Download completed!';
+                        progressData.percentage = 100;
+                    } else if (line.trim() && !lowerLine.includes('error')) {
+                        // Generic progress message
+                        progressData.status = 'downloading';
+                        progressData.message = line.trim();
+                    }
+                    
+                    // Send enhanced progress to renderer
+                    event.sender.send('download-progress', progressData);
+                    
+                    // If we got real progress data, clear the fallback timer
+                    if (progressData.percentage !== null || progressData.status !== 'downloading') {
+                        if (progressTimer) {
+                            clearInterval(progressTimer);
+                            progressTimer = null;
+                        }
+                    }
+                    
+                    // Debug logging
+                    console.log(`📊 Progress: ${JSON.stringify(progressData)}`);
                 }
             }
         });
@@ -211,8 +349,25 @@ ipcMain.handle('download-model', async (event, modelName, variant) => {
         });
         
         ollamaProcess.on('close', (code) => {
+            // Clear fallback progress timer
+            if (progressTimer) {
+                clearInterval(progressTimer);
+                progressTimer = null;
+            }
+            
             if (code === 0) {
                 console.log(`Successfully downloaded ${fullModelName}`);
+                
+                // Send final completion progress
+                event.sender.send('download-progress', {
+                    model: fullModelName,
+                    status: 'completed',
+                    message: 'Download completed! ✅',
+                    percentage: 100,
+                    speed: null,
+                    size: null
+                });
+                
                 resolve({ success: true, model: fullModelName });
             } else {
                 console.error(`Failed to download ${fullModelName}:`, error);
@@ -220,6 +375,75 @@ ipcMain.handle('download-model', async (event, modelName, variant) => {
             }
         });
     });
+});
+
+// Get models location without opening it (for status checks)
+ipcMain.handle('get-models-location', async () => {
+    try {
+        const configPath = path.join(__dirname, 'ollama-config.json');
+        
+        if (fs.existsSync(configPath)) {
+            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            if (config.usingExternal && config.externalPath) {
+                return { 
+                    success: true, 
+                    path: config.externalPath,
+                    isExternal: true
+                };
+            }
+        }
+        
+        // Fallback to default location
+        const defaultPath = process.env.OLLAMA_MODELS || '/Users/yevetteasante/.ollama/models';
+        return { 
+            success: true, 
+            path: defaultPath,
+            isExternal: false
+        };
+        
+    } catch (error) {
+        return { 
+            success: false, 
+            error: error.message 
+        };
+    }
+});
+
+// Open external drive location (actually opens in file system)
+ipcMain.handle('open-models-location', async () => {
+    const { shell } = require('electron');
+    
+    try {
+        const configPath = path.join(__dirname, 'ollama-config.json');
+        
+        if (fs.existsSync(configPath)) {
+            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            if (config.usingExternal && config.externalPath) {
+                // Open the external drive models folder
+                shell.openPath(config.externalPath);
+                return { 
+                    success: true, 
+                    message: `Opened external drive location: ${config.externalPath}`,
+                    path: config.externalPath
+                };
+            }
+        }
+        
+        // Fallback to default location
+        const defaultPath = process.env.OLLAMA_MODELS || '/Users/yevetteasante/.ollama/models';
+        shell.openPath(defaultPath);
+        return { 
+            success: true, 
+            message: `Opened default models location: ${defaultPath}`,
+            path: defaultPath
+        };
+        
+    } catch (error) {
+        return { 
+            success: false, 
+            error: `Failed to open models location: ${error.message}` 
+        };
+    }
 });
 
 // Get downloaded models
@@ -596,12 +820,32 @@ ipcMain.handle('use-for-models', async (event, driveName, drivePath) => {
             // Set the environment variable for this session
             process.env.OLLAMA_MODELS = modelsPath;
             
+            // Automatically restart Ollama with new settings
+            console.log('🔄 Restarting Ollama with external drive settings...');
+            
+            // Kill existing Ollama processes
+            const killProcess = spawn('pkill', ['ollama']);
+            
+            killProcess.on('close', () => {
+                // Wait a moment, then start Ollama with new path
+                setTimeout(() => {
+                    const ollamaProcess = spawn('ollama', ['serve'], {
+                        env: { ...process.env, OLLAMA_MODELS: modelsPath },
+                        detached: true,
+                        stdio: 'ignore'
+                    });
+                    ollamaProcess.unref();
+                    
+                    console.log(`✅ Ollama restarted with external drive: ${modelsPath}`);
+                }, 2000);
+            });
+            
             resolve({ 
                 success: true, 
-                message: `External drive '${driveName}' is now configured for Ollama models.${moveMessage}`,
+                message: `External drive '${driveName}' is now configured for Ollama models.${moveMessage} Ollama has been automatically restarted.`,
                 modelsPath: modelsPath,
                 originalPath: currentModelsPath,
-                restartRequired: true,
+                restartRequired: false, // No longer required since we do it automatically
                 modelsMoved: moveMessage.length > 0
             });
             

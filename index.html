@@ -8,119 +8,229 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-left">
-                <h1>🤖 Ollama Chat</h1>
+        <!-- Navigation -->
+        <nav class="main-nav">
+            <div class="nav-brand">
+                <h1>🤖 Ollama Hub</h1>
                 <div class="status-indicator">
                     <span id="status-dot" class="status-dot"></span>
                     <span id="status-text">Checking...</span>
                 </div>
             </div>
-            <div class="header-right">
-                <select id="model-select" class="model-select">
-                    <option value="">Loading models...</option>
-                </select>
-                <button id="refresh-models" class="refresh-btn">🔄</button>
-                <button id="model-manager-btn" class="model-manager-btn">📚</button>
-                <button id="settings-btn" class="settings-btn">⚙️</button>
+            <div class="nav-menu">
+                <button class="nav-btn active" data-view="home">🏠 Home</button>
+                <button class="nav-btn" data-view="chat">💬 Chat</button>
+                <button class="nav-btn" data-view="models">📚 Models</button>
+                <button class="nav-btn" data-view="settings">⚙️ Settings</button>
             </div>
-        </header>
+        </nav>
 
-        <!-- Chat Container -->
-        <main class="chat-container">
-            <div id="chat-messages" class="chat-messages">
-                <div class="welcome-message">
-                    <div class="welcome-icon">🚀</div>
-                    <h2>Welcome to Ollama Chat!</h2>
-                    <p>Your AI assistant is ready to help. Start typing a message below.</p>
-                    <div class="quick-suggestions">
-                        <button class="suggestion-btn" data-message="Hello! Can you help me write a Python script?">💻 Code Help</button>
-                        <button class="suggestion-btn" data-message="Can you explain quantum computing in simple terms?">🧠 Explain Concepts</button>
-                        <button class="suggestion-btn" data-message="Write a creative short story about space exploration">✨ Creative Writing</button>
+        <!-- Home View -->
+        <div id="home-view" class="view active">
+            <div class="hero-section">
+                <div class="hero-content">
+                    <h1>Welcome to Ollama Hub</h1>
+                    <p>Your AI model management and interaction platform</p>
+                    
+                    <div class="feature-grid">
+                        <div class="feature-card" onclick="switchToView('chat')">
+                            <div class="feature-icon">💬</div>
+                            <h3>Chat with AI</h3>
+                            <p>Have conversations with your downloaded AI models</p>
+                            <button class="feature-btn">Start Chatting</button>
+                        </div>
+                        
+                        <div class="feature-card" onclick="switchToView('models')">
+                            <div class="feature-icon">📚</div>
+                            <h3>Manage Models</h3>
+                            <p>Browse, download, and organize your AI models</p>
+                            <button class="feature-btn">Browse Models</button>
+                        </div>
+                        
+                        <div class="feature-card" onclick="switchToView('analyzer')">
+                            <div class="feature-icon">📄</div>
+                            <h3>Document Analysis</h3>
+                            <p>Analyze documents and text with AI models</p>
+                            <button class="feature-btn">Analyze Text</button>
+                        </div>
+                        
+                        <div class="feature-card" onclick="switchToView('coder')">
+                            <div class="feature-icon">💻</div>
+                            <h3>Code Assistant</h3>
+                            <p>Generate and review code with AI assistance</p>
+                            <button class="feature-btn">Code Helper</button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </main>
-
-        <!-- Input Area -->
-        <footer class="input-container">
-            <div class="input-wrapper">
-                <textarea 
-                    id="message-input" 
-                    class="message-input" 
-                    placeholder="Type your message here... (Shift+Enter for new line)"
-                    rows="1"></textarea>
-                <button id="send-button" class="send-button" disabled>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                        <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="currentColor"/>
-                    </svg>
-                </button>
+            
+            <div class="quick-stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="downloaded-count">0</div>
+                    <div class="stat-label">Downloaded Models</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="storage-location">Local</div>
+                    <div class="stat-label">Storage Location</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="active-model">None</div>
+                    <div class="stat-label">Active Model</div>
+                </div>
             </div>
-        </footer>
+        </div>
+
+        <!-- Chat View -->
+        <div id="chat-view" class="view">
+            <div class="chat-header">
+                <div class="chat-controls">
+                    <select id="model-select" class="model-select">
+                        <option value="">Select a model...</option>
+                    </select>
+                    <button id="refresh-models" class="refresh-btn">🔄</button>
+                </div>
+            </div>
+            
+            <div class="chat-container">
+                <div id="chat-messages" class="chat-messages">
+                    <div class="welcome-message">
+                        <div class="welcome-icon">🚀</div>
+                        <h2>Welcome to AI Chat!</h2>
+                        <p>Select a model above and start your conversation.</p>
+                        <div class="quick-suggestions">
+                            <button class="suggestion-btn" data-message="Hello! Can you help me write a Python script?">💻 Code Help</button>
+                            <button class="suggestion-btn" data-message="Can you explain quantum computing in simple terms?">🧠 Explain Concepts</button>
+                            <button class="suggestion-btn" data-message="Write a creative short story about space exploration">✨ Creative Writing</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <textarea 
+                        id="message-input" 
+                        class="message-input" 
+                        placeholder="Type your message here... (Shift+Enter for new line)"
+                        rows="1"></textarea>
+                    <button id="send-button" class="send-button" disabled>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Models View -->
+        <div id="models-view" class="view">
+            <div class="models-header">
+                <h2>📚 Model Management</h2>
+                <div class="models-controls">
+                    <div class="current-location">
+                        <span id="current-storage-path">External drive required</span>
+                        <span class="storage-type local">⚠️ Lightweight App</span>
+                    </div>
+                    <button id="open-models-folder" class="open-folder-btn">📁 Open Models Folder</button>
+                </div>
+            </div>
+            
+            <div class="models-content">
+                <div class="models-grid" id="models-grid">
+                    <div class="loading-models">🔄 Loading models...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Document Analyzer View -->
+        <div id="analyzer-view" class="view">
+            <div class="analyzer-header">
+                <h2>📄 Document Analysis</h2>
+                <select id="analyzer-model-select" class="model-select">
+                    <option value="">Select analysis model...</option>
+                </select>
+            </div>
+            
+            <div class="analyzer-content">
+                <div class="input-section">
+                    <textarea id="text-input" placeholder="Paste your text here or drag and drop a file..." class="text-analyzer"></textarea>
+                    <div class="analyzer-controls">
+                        <button id="analyze-btn" class="analyze-btn">🔍 Analyze Text</button>
+                        <button id="summarize-btn" class="analyze-btn">📝 Summarize</button>
+                        <button id="extract-btn" class="analyze-btn">📋 Extract Key Points</button>
+                    </div>
+                </div>
+                <div class="results-section">
+                    <div id="analysis-results" class="analysis-results">
+                        <div class="results-placeholder">
+                            📄 Analysis results will appear here
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Code Assistant View -->
+        <div id="coder-view" class="view">
+            <div class="coder-header">
+                <h2>💻 Code Assistant</h2>
+                <select id="coder-model-select" class="model-select">
+                    <option value="">Select coding model...</option>
+                </select>
+            </div>
+            
+            <div class="coder-content">
+                <div class="code-input-section">
+                    <div class="code-controls">
+                        <select id="language-select" class="language-select">
+                            <option value="python">Python</option>
+                            <option value="javascript">JavaScript</option>
+                            <option value="html">HTML</option>
+                            <option value="css">CSS</option>
+                            <option value="java">Java</option>
+                            <option value="cpp">C++</option>
+                            <option value="other">Other</option>
+                        </select>
+                        <button id="generate-btn" class="code-btn">✨ Generate</button>
+                        <button id="review-btn" class="code-btn">🔍 Review</button>
+                        <button id="explain-btn" class="code-btn">📖 Explain</button>
+                    </div>
+                    <textarea id="code-input" placeholder="Describe what you want to code, or paste existing code for review..." class="code-editor"></textarea>
+                </div>
+                <div class="code-results-section">
+                    <div id="code-results" class="code-results">
+                        <div class="results-placeholder">
+                            💻 Generated code and explanations will appear here
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings View -->
+        <div id="settings-view" class="view">
+            <div class="settings-header">
+                <h2>⚙️ Settings</h2>
+            </div>
+            
+            <div class="settings-content">
+                <div class="setting-section">
+                    <h3>External Drives</h3>
+                    <div class="drives-controls">
+                        <button id="refresh-drives" class="refresh-drives-btn">🔄 Refresh</button>
+                        <span id="auto-refresh-indicator" class="auto-refresh-indicator" style="display: none;">🔄 Auto-refreshing...</span>
+                    </div>
+                    <div id="drives-list" class="drives-list">
+                        <div class="scanning-drives">Scanning for drives...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Loading Overlay -->
         <div id="loading-overlay" class="loading-overlay hidden">
             <div class="loading-spinner"></div>
             <p>AI is thinking...</p>
-        </div>
-
-        <!-- Model Management Modal -->
-        <div id="model-manager-modal" class="modal" style="display: none;">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>📚 Model Management</h2>
-                    <button id="close-model-manager" class="close-btn">&times;</button>
-                </div>
-                
-                <div class="modal-body">
-                    <!-- Current Storage Location -->
-                    <div class="setting-section">
-                        <h3>Model Storage Location</h3>
-                        <div class="current-location">
-                            <span id="current-storage-path">External drive required</span>
-                            <span class="storage-type local">⚠️ Lightweight App</span>
-                        </div>
-                        <p class="storage-note">This app requires external storage to prevent local storage bloat. Please select an external drive for model storage.</p>
-                    </div>
-
-                    <!-- Models Library Section -->
-                    <div class="setting-section">
-                        <h3>📚 Models Library</h3>
-                        <p class="section-description">Browse and download popular AI models to your external drive</p>
-                        
-                        <div class="models-grid" id="models-grid">
-                            <div class="loading-models">
-                                🔄 Loading models...
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Settings Modal -->
-        <div id="settings-modal" class="modal" style="display: none;">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>⚙️ Settings</h2>
-                    <button id="close-settings" class="close-btn">&times;</button>
-                </div>
-                
-                <div class="modal-body">
-                    <!-- External Drives -->
-                    <div class="setting-section">
-                        <h3>External Drives</h3>
-                        <div class="drives-controls">
-                            <button id="refresh-drives" class="refresh-drives-btn">🔄 Refresh</button>
-                            <span id="auto-refresh-indicator" class="auto-refresh-indicator" style="display: none;">🔄 Auto-refreshing...</span>
-                        </div>
-                        <div id="drives-list" class="drives-list">
-                            <div class="scanning-drives">Scanning for drives...</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 

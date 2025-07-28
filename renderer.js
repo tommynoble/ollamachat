@@ -10,12 +10,6 @@ const modelSelect = document.getElementById('model-select');
 const refreshModelsBtn = document.getElementById('refresh-models');
 const statusDot = document.getElementById('status-dot');
 const statusText = document.getElementById('status-text');
-const modelManagerBtn = document.getElementById('model-manager-btn');
-const modelManagerModal = document.getElementById('model-manager-modal');
-const closeModelManagerBtn = document.getElementById('close-model-manager');
-const settingsBtn = document.getElementById('settings-btn');
-const settingsModal = document.getElementById('settings-modal');
-const closeSettingsBtn = document.getElementById('close-settings');
 const refreshDrivesBtn = document.getElementById('refresh-drives');
 const drivesList = document.getElementById('drives-list');
 const autoRefreshIndicator = document.getElementById('auto-refresh-indicator');
@@ -28,11 +22,75 @@ let activeDrive = null;
 let isLoading = false;
 let currentModel = null;
 const downloadingModels = new Set();
+let downloadedModelsList = new Set(); // Track which models are already downloaded
+
+// Check which models are already downloaded
+async function checkDownloadedModels() {
+    try {
+        const result = await ipcRenderer.invoke('get-downloaded-models');
+        
+        if (result.success && result.models) {
+            downloadedModelsList.clear();
+            result.models.forEach(model => {
+                downloadedModelsList.add(model.name);
+            });
+            console.log('📦 Downloaded models:', Array.from(downloadedModelsList));
+        } else {
+            // Fallback: try using ollama list
+            const response = await fetch('http://localhost:11434/api/tags');
+            if (response.ok) {
+                const data = await response.json();
+                downloadedModelsList.clear();
+                data.models.forEach(model => {
+                    downloadedModelsList.add(model.name);
+                });
+                console.log('📦 Downloaded models (via API):', Array.from(downloadedModelsList));
+            }
+        }
+    } catch (error) {
+        console.log('Could not check downloaded models:', error);
+    }
+}
+
+// Check for existing external drive configuration on startup
+async function checkExistingExternalDriveConfig() {
+    try {
+        // Check if there's an existing configuration
+        const configCheck = await ipcRenderer.invoke('get-models-location');
+        
+        if (configCheck.success && configCheck.isExternal) {
+            // Extract drive name from path (e.g., "/Volumes/Extreme SSD/ollama-models" -> "Extreme SSD")
+            const pathParts = configCheck.path.split('/');
+            const volumesIndex = pathParts.indexOf('Volumes');
+            if (volumesIndex >= 0 && pathParts[volumesIndex + 1]) {
+                activeDrive = pathParts[volumesIndex + 1];
+                console.log(`🎯 Detected active external drive: ${activeDrive}`);
+                
+                // Update storage display
+                await updateStorageLocationDisplay();
+            }
+        }
+    } catch (error) {
+        console.log('No existing external drive configuration found');
+    }
+}
 
 // Initialize app
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     checkOllamaStatus();
     setupEventListeners();
+    
+    // Check for existing external drive configuration
+    await checkExistingExternalDriveConfig();
+    
+    // Check downloaded models on startup
+    await checkDownloadedModels();
+    
+    // Initialize home view by default
+    await updateHomeStats();
+    
+    // Set up auto-refresh for home stats
+    setInterval(updateHomeStats, 30000); // Update every 30 seconds
 });
 
 
@@ -87,69 +145,92 @@ async function loadModels() {
 
 // Setup event listeners
 function setupEventListeners() {
-    // Send button click
-    sendButton.addEventListener('click', sendMessage);
+    // Setup navigation
+    setupNavigation();
     
-    // Enter key in textarea (but allow Shift+Enter for new line)
-    messageInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
+    // Chat functionality
+    if (sendButton) {
+        sendButton.addEventListener('click', sendMessage);
+    }
     
-    // Auto-resize textarea
-    messageInput.addEventListener('input', autoResizeTextarea);
-    
-    // Enable/disable send button based on input
-    messageInput.addEventListener('input', updateSendButton);
+    if (messageInput) {
+        // Enter key in textarea (but allow Shift+Enter for new line)
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // Auto-resize textarea
+        messageInput.addEventListener('input', autoResizeTextarea);
+        
+        // Enable/disable send button based on input
+        messageInput.addEventListener('input', updateSendButton);
+    }
     
     // Model selection change
-    modelSelect.addEventListener('change', (e) => {
-        currentModel = e.target.value;
-    });
+    if (modelSelect) {
+        modelSelect.addEventListener('change', (e) => {
+            currentModel = e.target.value;
+            updateHomeStats(); // Update home page when model changes
+        });
+    }
     
     // Refresh models button
-    refreshModelsBtn.addEventListener('click', async () => {
-        refreshModelsBtn.style.transform = 'rotate(180deg)';
-        await loadModels();
-        await checkOllamaStatus();
-        // Also refresh the model browser if it's open
-        if (modelManagerModal.style.display === 'flex') {
-            loadAvailableModels();
-        }
-        setTimeout(() => {
-            refreshModelsBtn.style.transform = 'rotate(0deg)';
-        }, 300);
-    });
+    if (refreshModelsBtn) {
+        refreshModelsBtn.addEventListener('click', async () => {
+            refreshModelsBtn.style.transform = 'rotate(180deg)';
+            await loadDownloadedModels();
+            await checkOllamaStatus();
+            await updateHomeStats(); // Update home stats
+            
+            setTimeout(() => {
+                refreshModelsBtn.style.transform = 'rotate(0deg)';
+            }, 300);
+        });
+    }
     
     // Quick suggestion buttons
     document.addEventListener('click', (e) => {
         if (e.target.classList.contains('suggestion-btn')) {
             const message = e.target.getAttribute('data-message');
-            messageInput.value = message;
-            updateSendButton();
-            messageInput.focus();
+            if (messageInput) {
+                messageInput.value = message;
+                updateSendButton();
+                messageInput.focus();
+            }
         }
     });
 
-    // Model management modal
-    modelManagerBtn.addEventListener('click', openModelManager);
-    closeModelManagerBtn.addEventListener('click', closeModelManager);
+    // Settings functionality
+    if (refreshDrivesBtn) {
+        refreshDrivesBtn.addEventListener('click', refreshDrives);
+    }
     
-    // Settings modal
-    settingsBtn.addEventListener('click', openSettings);
-    closeSettingsBtn.addEventListener('click', closeSettings);
-    refreshDrivesBtn.addEventListener('click', refreshDrives);
+    // Open models folder button
+    const openModelsFolderBtn = document.getElementById('open-models-folder');
+    if (openModelsFolderBtn) {
+        openModelsFolderBtn.addEventListener('click', openModelsLocation);
+    }
     
-    // Model browser functionality
-    document.querySelectorAll('.suggestion-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const message = btn.getAttribute('data-message');
-            messageInput.value = message;
-            sendMessage();
-        });
-    });
+    // Document Analyzer functionality
+    const analyzeBtn = document.getElementById('analyze-btn');
+    const summarizeBtn = document.getElementById('summarize-btn');
+    const extractBtn = document.getElementById('extract-btn');
+    
+    if (analyzeBtn) analyzeBtn.addEventListener('click', () => analyzeText('analyze'));
+    if (summarizeBtn) summarizeBtn.addEventListener('click', () => analyzeText('summarize'));
+    if (extractBtn) extractBtn.addEventListener('click', () => analyzeText('extract'));
+    
+    // Code Assistant functionality
+    const generateBtn = document.getElementById('generate-btn');
+    const reviewBtn = document.getElementById('review-btn');
+    const explainBtn = document.getElementById('explain-btn');
+    
+    if (generateBtn) generateBtn.addEventListener('click', () => processCode('generate'));
+    if (reviewBtn) reviewBtn.addEventListener('click', () => processCode('review'));
+    if (explainBtn) explainBtn.addEventListener('click', () => processCode('explain'));
 
     // Listen for download progress
     ipcRenderer.on('download-progress', (event, data) => {
@@ -295,44 +376,8 @@ function setLoading(loading) {
     updateSendButton();
 }
 
-// Model Management Functions
-async function openModelManager() {
-    modelManagerModal.style.display = 'flex';
-    loadAvailableModels();
-}
-
-function closeModelManager() {
-    modelManagerModal.style.display = 'none';
-}
-
-// Settings Modal Functions
+// Settings Functions (moved from modal system)
 let driveRefreshInterval = null;
-
-async function openSettings() {
-    settingsModal.style.display = 'flex';
-    
-    // Refresh drives list
-    refreshDrives();
-    
-    // Start auto-refresh for drives
-    autoRefreshInterval = setInterval(refreshDrives, 3000);
-    
-    // Show auto-refresh indicator
-    autoRefreshIndicator.style.display = 'inline';
-}
-
-function closeSettings() {
-    settingsModal.style.display = 'none';
-    
-    // Clear auto-refresh interval
-    if (autoRefreshInterval) {
-        clearInterval(autoRefreshInterval);
-        autoRefreshInterval = null;
-    }
-    
-    // Hide auto-refresh indicator
-    autoRefreshIndicator.style.display = 'none';
-}
 
 async function refreshDrives() {
     // Only show scanning message if drives list is empty
@@ -446,7 +491,7 @@ async function ejectDrive(driveName, force = false) {
     }
 }
 
-function useDrive(driveName, drivePath, buttonElement) {
+async function useDrive(driveName, drivePath, buttonElement) {
     // Show confirmation dialog with details
     const confirmMessage = `Use external drive "${driveName}" for all model storage?
 
@@ -474,50 +519,53 @@ Do you want to continue?`;
     button.disabled = true;
 
     // Call the backend to set up external drive
-    const { ipcRenderer } = require('electron');
-    ipcRenderer.invoke('use-for-models', driveName, drivePath)
-        .then(result => {
-            if (result.success) {
-                // Show success message with restart instruction
-                alert(`✅ Success! External drive "${driveName}" is now configured for Ollama models.
+    try {
+        const result = await ipcRenderer.invoke('use-for-models', driveName, drivePath);
+        
+        if (result.success) {
+            // Show success message with restart instruction
+            alert(`✅ Success! External drive "${driveName}" is now permanently configured for all model downloads.
 
-📁 Models will be stored at:
+📁 All future models will automatically download to:
 ${result.modelsPath}
 
-⚠️  IMPORTANT: Please restart Ollama manually for this change to take effect.
+🎯 Setup complete! No manual configuration needed.
+All downloads will now go to your external drive automatically.`);
 
-Your existing models remain at:
-${result.originalPath}`);
+            // Store which drive is active
+            activeDrive = driveName;
+            
+            // Update button state
+            button.textContent = 'Currently Used ✓';
+            button.classList.add('active');
+            button.disabled = true;
 
-                // Store which drive is active
-                activeDrive = driveName;
-                
-                // Update button state
-                button.textContent = 'Currently Used ✓';
-                button.classList.add('active');
-                button.disabled = true;
+            // Update storage location display
+            await updateStorageLocationDisplay();
 
-                // Don't refresh drives list to avoid overwriting our button state
-            } else {
-                // Show error message
-                alert(`❌ Failed to setup external drive: ${result.error}`);
-                
-                // Restore button state
-                button.textContent = originalText;
-                button.disabled = false;
-            }
-        })
-        .catch(error => {
-            alert(`❌ Error: ${error.message || error}`);
+            // Don't refresh drives list to avoid overwriting our button state
+        } else {
+            // Show error message
+            alert(`❌ Failed to setup external drive: ${result.error}`);
             
             // Restore button state
             button.textContent = originalText;
             button.disabled = false;
-        });
+        }
+    } catch (error) {
+        alert(`❌ Error: ${error.message || error}`);
+        
+        // Restore button state
+        button.textContent = originalText;
+        button.disabled = false;
+    }
 }
 
-// Model Browser Functions
-function loadAvailableModels() {
+// Model Browser Functions  
+async function loadAvailableModels() {
+    // First, check which models are already downloaded
+    await checkDownloadedModels();
+    
     // Hardcoded popular models for instant display
     const models = [
         {
@@ -580,24 +628,53 @@ function createModelCard(model, variant) {
     
     const fullName = `${model.name}:${variant}`;
     const isDownloading = downloadingModels.has(fullName);
+    const isDownloaded = downloadedModelsList.has(fullName);
+    
+    // Determine button state and styling
+    let buttonClass = 'download-model-btn';
+    let buttonText = 'Download Model';
+    let buttonDisabled = '';
+    let buttonAction = `downloadModel('${model.name}', '${variant}')`;
+    
+    if (isDownloaded) {
+        buttonClass = 'download-model-btn downloaded';
+        buttonText = 'Downloaded ✓';
+        buttonDisabled = 'disabled';
+        buttonAction = ''; // No action for downloaded models
+        card.classList.add('downloaded');
+    } else if (isDownloading) {
+        buttonText = 'Downloading...';
+        buttonDisabled = 'disabled';
+    }
     
     // Create all content in one operation to avoid reflows
     card.innerHTML = `
         <div class="model-header">
             <div class="model-name">${model.name}:${variant}</div>
             <div class="model-size">${model.sizes[variant]}</div>
+            ${isDownloaded ? '<div class="downloaded-badge">✅ Downloaded</div>' : ''}
         </div>
         <div class="model-description">${model.description}</div>
         <div class="model-meta">
             <div class="model-tags">
                 ${model.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
             </div>
-            <div class="download-time">⏱️ ${model.downloadTime[variant]}</div>
+            <div class="download-time">⏱️ ${isDownloaded ? 'Ready to use' : model.downloadTime[variant]}</div>
         </div>
-        <button class="download-model-btn" onclick="downloadModel('${model.name}', '${variant}')" 
-                ${isDownloading ? 'disabled' : ''}>
-            ${isDownloading ? 'Downloading...' : 'Download Model'}
-        </button>
+        <div class="download-progress" id="progress-${fullName.replace(':', '-')}" style="display: none;">
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: 0%"></div>
+            </div>
+            <div class="progress-text">Preparing download...</div>
+        </div>
+        <div class="model-actions">
+            <button class="${buttonClass}" onclick="${buttonAction}" ${buttonDisabled}>
+                ${buttonText}
+            </button>
+            <button class="open-location-btn" onclick="openModelsLocation()" title="Open models location">
+                📁
+            </button>
+        </div>
     `;
     
     return card;
@@ -653,6 +730,18 @@ async function downloadModel(modelName, variant) {
     buttonElement.disabled = true;
     buttonElement.style.background = '#6c757d';
     
+    // Show progress container
+    const modelId = fullName.replace(':', '-');
+    const progressContainer = document.getElementById(`progress-${modelId}`);
+    if (progressContainer) {
+        progressContainer.style.display = 'block';
+        progressContainer.className = 'download-progress preparing';
+        const progressText = progressContainer.querySelector('.progress-text');
+        if (progressText) {
+            progressText.textContent = 'Starting download...';
+        }
+    }
+    
     try {
         const result = await require('electron').ipcRenderer.invoke('download-model', modelName, variant);
         
@@ -663,14 +752,20 @@ async function downloadModel(modelName, variant) {
             // Show success message
             addMessage(`Successfully downloaded ${fullName}! You can now select it from the model dropdown.`, 'system');
             
-            // Refresh model selector to include new model
+            // Refresh model selector and model cards to show downloaded status
             await loadDownloadedModels();
+            await loadAvailableModels(); // Refresh the model cards to show downloaded state
             
             setTimeout(() => {
                 buttonElement.textContent = 'Download Model';
                 buttonElement.disabled = false;
                 buttonElement.style.background = '#007bff';
                 downloadingModels.delete(fullName);
+                
+                // Hide progress container
+                if (progressContainer) {
+                    progressContainer.style.display = 'none';
+                }
             }, 3000);
         } else {
             buttonElement.textContent = 'Download Failed';
@@ -684,6 +779,11 @@ async function downloadModel(modelName, variant) {
                 buttonElement.disabled = false;
                 buttonElement.style.background = '#007bff';
                 downloadingModels.delete(fullName);
+                
+                // Hide progress container
+                if (progressContainer) {
+                    progressContainer.style.display = 'none';
+                }
             }, 3000);
         }
     } catch (error) {
@@ -698,26 +798,127 @@ async function downloadModel(modelName, variant) {
             buttonElement.disabled = false;
             buttonElement.style.background = '#007bff';
             downloadingModels.delete(fullName);
+            
+            // Hide progress container
+            if (progressContainer) {
+                progressContainer.style.display = 'none';
+            }
         }, 3000);
     }
 }
 
-function updateDownloadProgress(data) {
-    const modelCards = modelsGrid.querySelectorAll('.model-card');
-    
-    modelCards.forEach(card => {
-        const downloadBtn = card.querySelector('.download-btn');
-        if (downloadBtn && downloadBtn.textContent.includes('Downloading')) {
-            const modelName = card.querySelector('.model-name').textContent;
-            if (modelName === data.model) {
-                const progressBar = card.querySelector('.download-progress-bar');
-                if (progressBar && data.message) {
-                    // Simple progress indication (could be enhanced with actual percentage)
-                    downloadBtn.textContent = 'Downloading... ' + data.message.substring(0, 20) + '...';
+// Open models location in Finder
+async function openModelsLocation() {
+    try {
+        const result = await ipcRenderer.invoke('open-models-location');
+        
+        if (result.success) {
+            // Show brief confirmation message
+            const statusMsg = document.createElement('div');
+            statusMsg.className = 'location-opened-msg';
+            statusMsg.textContent = `📁 Opened: ${result.path}`;
+            statusMsg.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #28a745;
+                color: white;
+                padding: 12px 16px;
+                border-radius: 6px;
+                z-index: 9999;
+                font-size: 14px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            `;
+            
+            document.body.appendChild(statusMsg);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                if (statusMsg.parentNode) {
+                    statusMsg.parentNode.removeChild(statusMsg);
                 }
-            }
+            }, 3000);
+        } else {
+            alert('Failed to open models location: ' + result.error);
         }
-    });
+    } catch (error) {
+        alert('Error opening models location: ' + error.message);
+    }
+}
+
+// Enhanced download progress handler
+function updateDownloadProgress(data) {
+    console.log('📊 Progress update received:', data); // Debug logging
+    
+    const modelId = data.model.replace(':', '-');
+    const progressContainer = document.getElementById(`progress-${modelId}`);
+    
+    if (!progressContainer) {
+        console.warn(`Progress container not found for ${modelId}`);
+        return;
+    }
+    
+    const progressBar = progressContainer.querySelector('.progress-fill');
+    const progressText = progressContainer.querySelector('.progress-text');
+    
+    if (!progressBar || !progressText) {
+        console.warn('Progress bar elements not found');
+        return;
+    }
+    
+    // Show progress container
+    progressContainer.style.display = 'block';
+    
+    // Update progress bar class for styling
+    progressContainer.className = `download-progress ${data.status}`;
+    
+    // Update progress bar width with animation
+    if (data.percentage !== null && data.percentage !== undefined) {
+        progressBar.style.width = `${Math.min(100, Math.max(0, data.percentage))}%`;
+    } else {
+        // Show some progress even without specific percentage
+        if (data.status === 'preparing') {
+            progressBar.style.width = '15%';
+        } else if (data.status === 'downloading') {
+            progressBar.style.width = '50%'; // Generic downloading state
+        } else if (data.status === 'verifying') {
+            progressBar.style.width = '90%';
+        }
+    }
+    
+    // Build progress text
+    let displayText = data.message || 'Processing...';
+    
+    if (data.status === 'downloading' && data.percentage !== null) {
+        displayText = `Downloading ${data.percentage}%`;
+        
+        if (data.speed) {
+            displayText += ` at ${data.speed}`;
+        }
+        
+        if (data.size) {
+            displayText += ` (${data.size})`;
+        }
+    } else if (data.status === 'preparing') {
+        displayText = 'Preparing download...';
+    } else if (data.status === 'verifying') {
+        displayText = 'Verifying download...';
+    } else if (data.status === 'completed') {
+        displayText = 'Download completed! ✅';
+        progressBar.style.width = '100%';
+        
+        // Hide progress after 3 seconds
+        setTimeout(() => {
+            if (progressContainer) {
+                progressContainer.style.display = 'none';
+            }
+        }, 3000);
+    }
+    
+    progressText.textContent = displayText;
+    
+    // Force redraw to ensure progress is visible
+    progressContainer.offsetHeight;
 }
 
 async function loadDownloadedModels() {
@@ -815,3 +1016,251 @@ async function deleteModel(modelName) {
 
 // Periodic status check
 setInterval(checkOllamaStatus, 30000); // Check every 30 seconds 
+
+// Update storage location display
+async function updateStorageLocationDisplay() {
+    const storagePathElement = document.getElementById('current-storage-path');
+    const storageTypeElement = document.querySelector('.storage-type');
+    const storageNoteElement = document.querySelector('.storage-note');
+    
+    if (!storagePathElement || !storageTypeElement || !storageNoteElement) return;
+    
+    try {
+        const configCheck = await ipcRenderer.invoke('get-models-location');
+        
+        if (configCheck.success && configCheck.isExternal) {
+            // External drive is configured
+            storagePathElement.textContent = configCheck.path;
+            storageTypeElement.className = 'storage-type external';
+            storageTypeElement.textContent = '✅ External Drive';
+            storageNoteElement.textContent = 'All model downloads automatically go to your external drive. Your computer stays lightweight!';
+        } else {
+            // Using local storage
+            storagePathElement.textContent = 'External drive required';
+            storageTypeElement.className = 'storage-type local';
+            storageTypeElement.textContent = '⚠️ Lightweight App';
+            storageNoteElement.textContent = 'This app requires external storage to prevent local storage bloat. Please select an external drive for model storage.';
+        }
+    } catch (error) {
+        console.log('Could not determine storage location');
+    }
+} 
+
+// Navigation and View Management
+function setupNavigation() {
+    const navButtons = document.querySelectorAll('.nav-btn');
+    
+    navButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetView = btn.getAttribute('data-view');
+            switchToView(targetView);
+            
+            // Update active nav button
+            navButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+    });
+}
+
+function switchToView(viewName) {
+    // Hide all views
+    document.querySelectorAll('.view').forEach(view => {
+        view.classList.remove('active');
+    });
+    
+    // Show target view
+    const targetView = document.getElementById(`${viewName}-view`);
+    if (targetView) {
+        targetView.classList.add('active');
+        
+        // Initialize view-specific functionality
+        initializeView(viewName);
+    }
+}
+
+async function initializeView(viewName) {
+    switch(viewName) {
+        case 'home':
+            await updateHomeStats();
+            break;
+        case 'chat':
+            await loadDownloadedModels();
+            break;
+        case 'models':
+            await updateStorageLocationDisplay();
+            await loadAvailableModels();
+            break;
+        case 'settings':
+            await checkExistingExternalDriveConfig();
+            refreshDrives();
+            break;
+        case 'analyzer':
+            await populateModelSelects();
+            break;
+        case 'coder':
+            await populateModelSelects();
+            break;
+    }
+}
+
+// Update Home Page Statistics
+async function updateHomeStats() {
+    try {
+        // Update downloaded models count
+        await checkDownloadedModels();
+        const downloadedCount = downloadedModelsList.size;
+        const downloadedCountElement = document.getElementById('downloaded-count');
+        if (downloadedCountElement) {
+            downloadedCountElement.textContent = downloadedCount;
+        }
+        
+        // Update storage location (using get-models-location to avoid popup)
+        const configCheck = await ipcRenderer.invoke('get-models-location');
+        const storageElement = document.getElementById('storage-location');
+        if (storageElement && configCheck.success) {
+            if (configCheck.isExternal) {
+                storageElement.textContent = 'External';
+            } else {
+                storageElement.textContent = 'Local';
+            }
+        }
+        
+        // Update active model
+        const modelSelect = document.getElementById('model-select');
+        const activeModelElement = document.getElementById('active-model');
+        if (activeModelElement) {
+            if (modelSelect && modelSelect.value) {
+                activeModelElement.textContent = modelSelect.value;
+            } else if (downloadedCount > 0) {
+                activeModelElement.textContent = Array.from(downloadedModelsList)[0] || 'Available';
+            } else {
+                activeModelElement.textContent = 'None';
+            }
+        }
+    } catch (error) {
+        console.log('Could not update home stats:', error);
+    }
+}
+
+// Populate model selects for analyzer and coder
+async function populateModelSelects() {
+    await checkDownloadedModels();
+    
+    const analyzerSelect = document.getElementById('analyzer-model-select');
+    const coderSelect = document.getElementById('coder-model-select');
+    
+    if (analyzerSelect) {
+        analyzerSelect.innerHTML = '<option value="">Select analysis model...</option>';
+        downloadedModelsList.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model;
+            option.textContent = model;
+            analyzerSelect.appendChild(option);
+        });
+    }
+    
+    if (coderSelect) {
+        coderSelect.innerHTML = '<option value="">Select coding model...</option>';
+        downloadedModelsList.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model;
+            option.textContent = model;
+            coderSelect.appendChild(option);
+        });
+    }
+}
+
+// Document Analyzer Functions
+async function analyzeText(action = 'analyze') {
+    const textInput = document.getElementById('text-input');
+    const modelSelect = document.getElementById('analyzer-model-select');
+    const resultsDiv = document.getElementById('analysis-results');
+    
+    const text = textInput.value.trim();
+    const model = modelSelect.value;
+    
+    if (!text) {
+        alert('Please enter some text to analyze');
+        return;
+    }
+    
+    if (!model) {
+        alert('Please select a model for analysis');
+        return;
+    }
+    
+    let prompt = '';
+    switch(action) {
+        case 'summarize':
+            prompt = `Please provide a concise summary of the following text:\n\n${text}`;
+            break;
+        case 'extract':
+            prompt = `Please extract the key points from the following text as a bulleted list:\n\n${text}`;
+            break;
+        default:
+            prompt = `Please analyze the following text and provide insights:\n\n${text}`;
+    }
+    
+    resultsDiv.innerHTML = '<div class="loading">🔄 Analyzing...</div>';
+    
+    try {
+        const response = await ipcRenderer.invoke('chat-message', prompt, model);
+        
+        if (response.success) {
+            resultsDiv.innerHTML = `<pre>${response.message}</pre>`;
+        } else {
+            resultsDiv.innerHTML = `<div class="error">Error: ${response.error}</div>`;
+        }
+    } catch (error) {
+        resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+    }
+}
+
+// Code Assistant Functions
+async function processCode(action = 'generate') {
+    const codeInput = document.getElementById('code-input');
+    const modelSelect = document.getElementById('coder-model-select');
+    const languageSelect = document.getElementById('language-select');
+    const resultsDiv = document.getElementById('code-results');
+    
+    const input = codeInput.value.trim();
+    const model = modelSelect.value;
+    const language = languageSelect.value;
+    
+    if (!input) {
+        alert('Please enter a description or code');
+        return;
+    }
+    
+    if (!model) {
+        alert('Please select a model for code assistance');
+        return;
+    }
+    
+    let prompt = '';
+    switch(action) {
+        case 'generate':
+            prompt = `Generate ${language} code for the following request:\n\n${input}\n\nPlease provide clean, well-commented code.`;
+            break;
+        case 'review':
+            prompt = `Please review the following ${language} code and suggest improvements:\n\n${input}`;
+            break;
+        case 'explain':
+            prompt = `Please explain how this ${language} code works:\n\n${input}`;
+            break;
+    }
+    
+    resultsDiv.innerHTML = '<div class="loading">🔄 Processing...</div>';
+    
+    try {
+        const response = await ipcRenderer.invoke('chat-message', prompt, model);
+        
+        if (response.success) {
+            resultsDiv.innerHTML = `<pre>${response.message}</pre>`;
+        } else {
+            resultsDiv.innerHTML = `<div class="error">Error: ${response.error}</div>`;
+        }
+    } catch (error) {
+        resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+    }
+} 
