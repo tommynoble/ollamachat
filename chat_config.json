@@ -1,0 +1,10 @@
+{
+  "model": "llama2",
+  "temperature": 0.7,
+  "system_prompt": "You are a helpful AI assistant.",
+  "max_tokens": 2048,
+  "top_p": 0.9,
+  "top_k": 40,
+  "repeat_penalty": 1.1,
+  "chat_history_file": "chat_history.json"
+}

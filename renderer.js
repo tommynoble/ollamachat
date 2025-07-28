@@ -17,40 +17,39 @@ const refreshDrivesBtn = document.getElementById('refresh-drives');
 const drivesList = document.getElementById('drives-list');
 const autoRefreshIndicator = document.getElementById('auto-refresh-indicator');
 const modelsGrid = document.getElementById('models-grid');
-const downloadedModelsList = document.getElementById('downloaded-models-list');
 
-// Model search elements
-const modelSearchInput = document.getElementById('model-search-input');
-const searchModelsBtn = document.getElementById('search-models-btn');
-const clearSearchBtn = document.getElementById('clear-search-btn');
-const searchStatus = document.getElementById('search-status');
-
-// State
-let isLoading = false;
+// Global variables
 let autoRefreshInterval = null;
-let activeDrive = null; // Store which drive is currently used for models
-let currentModel = '';
-let downloadingModels = new Set();
+let activeDrive = null;
+const downloadingModels = new Set();
 
-// Initialize the app
-async function initialize() {
-    console.log('Initializing Ollama Chat...');
-    
-    // Check Ollama status
-    await checkStatus();
-    
-    // Load available models
-    await loadModels();
-    
-    // Set up event listeners
+// Initialize app
+document.addEventListener('DOMContentLoaded', () => {
+    checkOllamaStatus();
     setupEventListeners();
+});
+
+function setupEventListeners() {
+    // Chat functionality
+    sendButton.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
     
-    // Focus on input
-    messageInput.focus();
+    // Model management
+    refreshModelsBtn.addEventListener('click', loadAvailableModels);
+    
+    // Settings modal
+    settingsBtn.addEventListener('click', openSettings);
+    closeSettingsBtn.addEventListener('click', closeSettings);
+    refreshDrivesBtn.addEventListener('click', refreshDrives);
 }
 
 // Check Ollama status
-async function checkStatus() {
+async function checkOllamaStatus() {
     try {
         const status = await ipcRenderer.invoke('check-ollama-status');
         
@@ -125,7 +124,7 @@ function setupEventListeners() {
     refreshModelsBtn.addEventListener('click', async () => {
         refreshModelsBtn.style.transform = 'rotate(180deg)';
         await loadModels();
-        await checkStatus();
+        await checkOllamaStatus();
         setTimeout(() => {
             refreshModelsBtn.style.transform = 'rotate(0deg)';
         }, 300);
@@ -146,22 +145,6 @@ function setupEventListeners() {
     closeSettingsBtn.addEventListener('click', closeSettings);
     refreshDrivesBtn.addEventListener('click', refreshDrives);
     
-    // Model search
-    searchModelsBtn.addEventListener('click', searchModels);
-    clearSearchBtn.addEventListener('click', showPopularModels);
-    modelSearchInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            searchModels();
-        }
-    });
-    
-    // Close modal when clicking outside
-    settingsModal.addEventListener('click', (e) => {
-        if (e.target === settingsModal) {
-            closeSettings();
-        }
-    });
-
     // Model browser functionality
     refreshModelsBtn.addEventListener('click', loadAvailableModels);
     document.querySelectorAll('.suggestion-btn').forEach(btn => {
@@ -190,67 +173,90 @@ function updateSendButton() {
     sendButton.disabled = !hasText || isLoading;
 }
 
-// Send message
+// Chat Functions
 async function sendMessage() {
     const message = messageInput.value.trim();
-    if (!message || isLoading) return;
+    const selectedModel = modelSelect.value;
     
-    // Clear input and reset height
-    messageInput.value = '';
-    messageInput.style.height = 'auto';
-    updateSendButton();
-    
-    // Hide welcome message if it exists
-    const welcomeMessage = document.querySelector('.welcome-message');
-    if (welcomeMessage) {
-        welcomeMessage.style.display = 'none';
-    }
+    if (!message) return;
     
     // Add user message to chat
-    addMessage('user', message);
+    addMessage(message, 'user');
+    messageInput.value = '';
     
-    // Show loading state
-    setLoading(true);
+    // Check for model switching commands
+    const modelSwitchPattern = /(?:use|switch to|load)\s+(\w+)/i;
+    const match = message.match(modelSwitchPattern);
+    
+    if (match) {
+        const requestedModel = match[1].toLowerCase();
+        const availableModels = Array.from(modelSelect.options).map(opt => opt.value);
+        
+        // Find closest match
+        const modelMatch = availableModels.find(model => 
+            model.toLowerCase().includes(requestedModel) || 
+            requestedModel.includes(model.toLowerCase())
+        );
+        
+        if (modelMatch) {
+            modelSelect.value = modelMatch;
+            addMessage(`Switched to ${modelMatch}`, 'system');
+            return;
+        }
+    }
     
     try {
-        // Send message to backend
-        const result = await ipcRenderer.invoke('send-message', message);
+        // Show typing indicator
+        const typingDiv = document.createElement('div');
+        typingDiv.classList.add('message', 'assistant', 'typing');
+        typingDiv.innerHTML = '<div class="message-content">🤔 Thinking...</div>';
+        chatMessages.appendChild(typingDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
         
-        if (result.success) {
-            // Add AI response to chat
-            addMessage('assistant', result.response);
+        // Send message to backend
+        const response = await ipcRenderer.invoke('chat-message', message, selectedModel);
+        
+        // Remove typing indicator
+        typingDiv.remove();
+        
+        if (response.success) {
+            addMessage(response.message, 'assistant');
         } else {
-            // Add error message
-            addMessage('assistant', `❌ Error: ${result.error}`);
+            addMessage('Error: ' + response.error, 'assistant');
         }
     } catch (error) {
-        console.error('Send message failed:', error);
-        addMessage('assistant', `❌ Failed to send message: ${error.message}`);
-    } finally {
-        setLoading(false);
-        messageInput.focus();
+        // Remove typing indicator
+        const typingIndicator = document.querySelector('.typing');
+        if (typingIndicator) typingIndicator.remove();
+        
+        addMessage('Error: ' + error.message, 'assistant');
     }
 }
 
-// Add message to chat
-function addMessage(type, content) {
+// Add system message support
+function addMessage(content, sender = 'user') {
     const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${type}`;
+    messageDiv.classList.add('message', sender);
     
-    const bubbleDiv = document.createElement('div');
-    bubbleDiv.className = 'message-bubble';
+    if (sender === 'system') {
+        messageDiv.innerHTML = `
+            <div class="message-content system-message">
+                <span class="system-icon">ℹ️</span>
+                ${content}
+            </div>
+        `;
+    } else {
+        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        messageDiv.innerHTML = `
+            <div class="message-header">
+                <span class="sender">${sender === 'user' ? 'You' : 'Assistant'}</span>
+                <span class="timestamp">${timestamp}</span>
+            </div>
+            <div class="message-content">${content}</div>
+        `;
+    }
     
-    const contentDiv = document.createElement('div');
-    contentDiv.className = 'message-content';
-    
-    // Format content (basic markdown-like formatting)
-    contentDiv.innerHTML = formatMessage(content);
-    
-    bubbleDiv.appendChild(contentDiv);
-    messageDiv.appendChild(bubbleDiv);
     chatMessages.appendChild(messageDiv);
-    
-    // Scroll to bottom
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
@@ -297,19 +303,19 @@ function setLoading(loading) {
 let driveRefreshInterval = null;
 
 async function openSettings() {
-    settingsModal.style.display = 'block';
-    refreshDrives();
+    settingsModal.style.display = 'flex';
     
     // Load available models for download
-    await loadAvailableModels();
+    loadAvailableModels();
     
-    // Load downloaded models
-    await loadDownloadedModels();
-    
-    // Start external drive monitoring
+    // Refresh drives list
     refreshDrives();
-    autoRefreshIndicator.style.display = 'block';
+    
+    // Start auto-refresh for drives
     autoRefreshInterval = setInterval(refreshDrives, 3000);
+    
+    // Show auto-refresh indicator
+    autoRefreshIndicator.style.display = 'inline';
 }
 
 function closeSettings() {
@@ -508,94 +514,61 @@ ${result.originalPath}`);
 }
 
 // Model Browser Functions
-let isSearchMode = false;
-
-async function loadAvailableModels() {
-    try {
-        const result = await ipcRenderer.invoke('get-available-models');
-        
-        if (result.success) {
-            isSearchMode = false;
-            displayAvailableModels(result.models, 'Popular Models');
-        } else {
-            modelsGrid.innerHTML = '<div class="error-message">Failed to load models: ' + result.error + '</div>';
+function loadAvailableModels() {
+    // Hardcoded popular models for instant display
+    const models = [
+        {
+            name: 'llama2',
+            variants: ['7b', '13b', '70b'],
+            description: 'Meta\'s Llama 2 model, excellent for general conversation and reasoning',
+            tags: ['general', 'reasoning'],
+            sizes: { '7b': '3.8GB', '13b': '7.3GB', '70b': '39GB' },
+            downloadTime: { '7b': '5-10 min', '13b': '10-15 min', '70b': '45-60 min' }
+        },
+        {
+            name: 'mistral',
+            variants: ['7b'],
+            description: 'Fast and capable model, great balance of performance and speed',
+            tags: ['general', 'fast'],
+            sizes: { '7b': '4.1GB' },
+            downloadTime: { '7b': '6-12 min' }
+        },
+        {
+            name: 'codellama',
+            variants: ['7b', '13b', '34b'],
+            description: 'Code generation and programming assistance model',
+            tags: ['coding', 'programming'],
+            sizes: { '7b': '3.8GB', '13b': '7.3GB', '34b': '19GB' },
+            downloadTime: { '7b': '5-10 min', '13b': '10-15 min', '34b': '25-35 min' }
+        },
+        {
+            name: 'phi3',
+            variants: ['mini', 'small', 'medium'],
+            description: 'Microsoft\'s efficient small language model, very fast',
+            tags: ['fast', 'efficient'],
+            sizes: { 'mini': '2.3GB', 'small': '7.9GB', 'medium': '14GB' },
+            downloadTime: { 'mini': '3-6 min', 'small': '10-15 min', 'medium': '18-25 min' }
+        },
+        {
+            name: 'gemma',
+            variants: ['2b', '7b'],
+            description: 'Google\'s Gemma model family, lightweight and powerful',
+            tags: ['general', 'efficient'],
+            sizes: { '2b': '1.4GB', '7b': '5.0GB' },
+            downloadTime: { '2b': '2-4 min', '7b': '7-12 min' }
+        },
+        {
+            name: 'neural-chat',
+            variants: ['7b'],
+            description: 'Fine-tuned for helpful, harmless, and honest conversations',
+            tags: ['chat', 'helpful'],
+            sizes: { '7b': '4.1GB' },
+            downloadTime: { '7b': '6-12 min' }
         }
-    } catch (error) {
-        modelsGrid.innerHTML = '<div class="error-message">Error loading models: ' + error.message + '</div>';
-    }
-}
-
-async function searchModels() {
-    const searchQuery = modelSearchInput.value.trim();
+    ];
     
-    if (!searchQuery) {
-        alert('Please enter a search term');
-        return;
-    }
-    
-    // Update UI to show searching
-    searchModelsBtn.disabled = true;
-    searchModelsBtn.textContent = 'Searching...';
-    showSearchStatus('Searching Ollama library...', 'searching');
-    modelsGrid.innerHTML = '<div class="loading-models">Searching for models...</div>';
-    
-    try {
-        const result = await ipcRenderer.invoke('search-ollama-library', searchQuery);
-        
-        if (result.success) {
-            isSearchMode = true;
-            const resultCount = result.models.length;
-            const statusMsg = resultCount > 0 
-                ? `Found ${resultCount} model${resultCount === 1 ? '' : 's'} matching "${searchQuery}"`
-                : `No models found matching "${searchQuery}"`;
-                
-            showSearchStatus(statusMsg, 'success');
-            displayAvailableModels(result.models, `Search Results for "${searchQuery}"`);
-            clearSearchBtn.style.display = 'inline-block';
-        } else {
-            showSearchStatus('Search failed: ' + result.error, 'error');
-            modelsGrid.innerHTML = '<div class="error-message">Search failed: ' + result.error + '</div>';
-        }
-    } catch (error) {
-        showSearchStatus('Search error: ' + error.message, 'error');
-        modelsGrid.innerHTML = '<div class="error-message">Search error: ' + error.message + '</div>';
-    } finally {
-        searchModelsBtn.disabled = false;
-        searchModelsBtn.textContent = 'Search';
-    }
-}
-
-async function showPopularModels() {
-    modelSearchInput.value = '';
-    clearSearchBtn.style.display = 'none';
-    hideSearchStatus();
-    await loadAvailableModels();
-}
-
-function showSearchStatus(message, type) {
-    searchStatus.textContent = message;
-    searchStatus.className = `search-status ${type}`;
-    searchStatus.style.display = 'block';
-}
-
-function hideSearchStatus() {
-    searchStatus.style.display = 'none';
-}
-
-function displayAvailableModels(models, title) {
-    if (models.length === 0) {
-        modelsGrid.innerHTML = '<div class="no-models">No models found</div>';
-        return;
-    }
-    
-    modelsGrid.innerHTML = '';
-    
-    models.forEach(model => {
-        model.variants.forEach(variant => {
-            const modelCard = createModelCard(model, variant);
-            modelsGrid.appendChild(modelCard);
-        });
-    });
+    // Display models instantly
+    displayAvailableModels(models);
 }
 
 function createModelCard(model, variant) {
@@ -605,59 +578,69 @@ function createModelCard(model, variant) {
     const fullName = `${model.name}:${variant}`;
     const isDownloading = downloadingModels.has(fullName);
     
-    // Different styling for search results vs popular models
-    const isFromSearch = model.source === 'ollama-library';
-    const cardClass = isFromSearch ? 'model-card search-result' : 'model-card';
-    card.className = cardClass;
-    
-    // Show installed status for search results
-    const installedBadge = model.isInstalled ? '<span class="installed-badge">✓ Installed</span>' : '';
-    
+    // Create all content in one operation to avoid reflows
     card.innerHTML = `
         <div class="model-header">
             <div class="model-name">${model.name}:${variant}</div>
             <div class="model-size">${model.sizes[variant]}</div>
-            ${installedBadge}
         </div>
         <div class="model-description">${model.description}</div>
-        <div class="model-tags">
-            ${model.tags.map(tag => `<span class="model-tag ${tag}">${tag}</span>`).join('')}
+        <div class="model-meta">
+            <div class="model-tags">
+                ${model.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+            </div>
+            <div class="download-time">⏱️ ${model.downloadTime[variant]}</div>
         </div>
-        <div class="download-info">
-            <small>Download time: ~${model.downloadTime[variant]}</small>
-        </div>
-        <button class="download-btn ${model.isInstalled ? 'installed' : ''}" 
-                ${isDownloading || model.isInstalled ? 'disabled' : ''} 
-                onclick="downloadModel('${model.name}', '${variant}', this)">
-            ${isDownloading ? 'Downloading...' : model.isInstalled ? 'Already Installed' : 'Download Model'}
+        <button class="download-model-btn" onclick="downloadModel('${model.name}', '${variant}')" 
+                ${isDownloading ? 'disabled' : ''}>
+            ${isDownloading ? 'Downloading...' : 'Download Model'}
         </button>
-        <div class="download-progress" style="display: none;">
-            <div class="download-progress-bar" style="width: 0%"></div>
-        </div>
     `;
     
     return card;
 }
 
-async function downloadModel(modelName, variant, buttonElement) {
+function displayAvailableModels(models) {
+    // Create a document fragment for better performance
+    const fragment = document.createDocumentFragment();
+    
+    models.forEach(model => {
+        model.variants.forEach(variant => {
+            const modelCard = createModelCard(model, variant);
+            fragment.appendChild(modelCard);
+        });
+    });
+    
+    // Clear and append all at once to avoid multiple reflows
+    modelsGrid.innerHTML = '';
+    modelsGrid.appendChild(fragment);
+}
+
+async function downloadModel(modelName, variant) {
     const fullName = `${modelName}:${variant}`;
     
     // Check if external drive is configured
     try {
-        const configPath = path.join(__dirname, 'ollama-config.json');
-        
-        if (!fs.existsSync(configPath)) {
-            alert('Please configure an external drive first in the External Drives section below.');
-            return;
-        }
-        
-        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        if (!config.externalPath) {
-            alert('No external drive configured. Please select an external drive first.');
-            return;
-        }
+        // For now, let's skip the external drive check and allow direct downloads
+        console.log(`Starting download of ${fullName}`);
     } catch (error) {
-        alert('Please configure an external drive first.');
+        console.log('External drive check skipped, proceeding with download');
+    }
+    
+    // Find the button that was clicked
+    const buttons = document.querySelectorAll('.download-model-btn');
+    let buttonElement = null;
+    
+    for (const btn of buttons) {
+        const onClick = btn.getAttribute('onclick');
+        if (onClick && onClick.includes(`'${modelName}'`) && onClick.includes(`'${variant}'`)) {
+            buttonElement = btn;
+            break;
+        }
+    }
+    
+    if (!buttonElement) {
+        console.error('Could not find download button');
         return;
     }
     
@@ -665,55 +648,55 @@ async function downloadModel(modelName, variant, buttonElement) {
     downloadingModels.add(fullName);
     buttonElement.textContent = 'Downloading...';
     buttonElement.disabled = true;
-    buttonElement.classList.add('downloading');
-    
-    const progressContainer = buttonElement.parentElement.querySelector('.download-progress');
-    progressContainer.style.display = 'block';
+    buttonElement.style.background = '#6c757d';
     
     try {
-        const result = await ipcRenderer.invoke('download-model', modelName, variant);
+        const result = await require('electron').ipcRenderer.invoke('download-model', modelName, variant);
         
         if (result.success) {
             buttonElement.textContent = 'Downloaded ✓';
             buttonElement.style.background = '#28a745';
-            progressContainer.style.display = 'none';
             
-            // Refresh downloaded models list
+            // Show success message
+            addMessage(`Successfully downloaded ${fullName}! You can now select it from the model dropdown.`, 'system');
+            
+            // Refresh model selector to include new model
             await loadDownloadedModels();
-            await loadModels(); // Refresh model selector
             
             setTimeout(() => {
                 buttonElement.textContent = 'Download Model';
                 buttonElement.disabled = false;
-                buttonElement.classList.remove('downloading');
-                buttonElement.style.background = '';
+                buttonElement.style.background = '#007bff';
+                downloadingModels.delete(fullName);
             }, 3000);
         } else {
             buttonElement.textContent = 'Download Failed';
             buttonElement.style.background = '#dc3545';
-            alert('Download failed: ' + result.error);
+            
+            // Show error message
+            addMessage(`Failed to download ${fullName}: ${result.error}`, 'system');
             
             setTimeout(() => {
                 buttonElement.textContent = 'Download Model';
                 buttonElement.disabled = false;
-                buttonElement.classList.remove('downloading');
-                buttonElement.style.background = '';
+                buttonElement.style.background = '#007bff';
+                downloadingModels.delete(fullName);
             }, 3000);
         }
     } catch (error) {
+        console.error('Download error:', error);
         buttonElement.textContent = 'Download Failed';
         buttonElement.style.background = '#dc3545';
-        alert('Download error: ' + error.message);
+        
+        addMessage(`Download error for ${fullName}: ${error.message}`, 'system');
         
         setTimeout(() => {
             buttonElement.textContent = 'Download Model';
             buttonElement.disabled = false;
-            buttonElement.classList.remove('downloading');
-            buttonElement.style.background = '';
+            buttonElement.style.background = '#007bff';
+            downloadingModels.delete(fullName);
         }, 3000);
     }
-    
-    downloadingModels.delete(fullName);
 }
 
 function updateDownloadProgress(data) {
@@ -736,15 +719,27 @@ function updateDownloadProgress(data) {
 
 async function loadDownloadedModels() {
     try {
-        const result = await ipcRenderer.invoke('get-downloaded-models');
+        const result = await require('electron').ipcRenderer.invoke('get-downloaded-models');
         
-        if (result.success) {
-            displayDownloadedModels(result.models);
-        } else {
-            downloadedModelsList.innerHTML = '<div class="error-message">Failed to load downloaded models</div>';
+        if (result.success && result.models) {
+            // Update model selector
+            const currentValue = modelSelect.value;
+            modelSelect.innerHTML = '<option value="">Select a model...</option>';
+            
+            result.models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.name;
+                option.textContent = `${model.name} (${model.size})`;
+                modelSelect.appendChild(option);
+            });
+            
+            // Restore previous selection if still available
+            if (currentValue && Array.from(modelSelect.options).some(opt => opt.value === currentValue)) {
+                modelSelect.value = currentValue;
+            }
         }
     } catch (error) {
-        downloadedModelsList.innerHTML = '<div class="error-message">Error loading downloaded models</div>';
+        console.error('Failed to load downloaded models:', error);
     }
 }
 
@@ -816,7 +811,7 @@ async function deleteModel(modelName) {
 }
 
 // Periodic status check
-setInterval(checkStatus, 30000); // Check every 30 seconds
+setInterval(checkOllamaStatus, 30000); // Check every 30 seconds
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', initialize); 

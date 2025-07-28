@@ -117,16 +117,16 @@ ipcMain.handle('get-available-models', async () => {
             },
             {
                 name: 'mistral',
-                variants: ['7b', '8x7b'],
+                variants: ['7b'],
                 description: 'Fast and capable model, great balance of performance and speed',
                 tags: ['general', 'fast'],
-                sizes: { '7b': '4.1GB', '8x7b': '26GB' },
-                downloadTime: { '7b': '5-10 min', '8x7b': '30-40 min' }
+                sizes: { '7b': '4.1GB' },
+                downloadTime: { '7b': '6-12 min' }
             },
             {
                 name: 'codellama',
                 variants: ['7b', '13b', '34b'],
-                description: 'Specialized for code generation, debugging, and programming tasks',
+                description: 'Code generation and programming assistance model',
                 tags: ['coding', 'programming'],
                 sizes: { '7b': '3.8GB', '13b': '7.3GB', '34b': '19GB' },
                 downloadTime: { '7b': '5-10 min', '13b': '10-15 min', '34b': '25-35 min' }
@@ -134,224 +134,32 @@ ipcMain.handle('get-available-models', async () => {
             {
                 name: 'phi3',
                 variants: ['mini', 'small', 'medium'],
-                description: 'Microsoft\'s compact yet powerful model, great for resource-constrained environments',
+                description: 'Microsoft\'s efficient small language model, very fast',
                 tags: ['fast', 'efficient'],
                 sizes: { 'mini': '2.3GB', 'small': '7.9GB', 'medium': '14GB' },
-                downloadTime: { 'mini': '3-5 min', 'small': '8-12 min', 'medium': '15-20 min' }
+                downloadTime: { 'mini': '3-6 min', 'small': '10-15 min', 'medium': '18-25 min' }
             },
             {
                 name: 'gemma',
                 variants: ['2b', '7b'],
-                description: 'Google\'s lightweight model family, optimized for efficiency',
-                tags: ['fast', 'efficient'],
-                sizes: { '2b': '1.4GB', '7b': '4.8GB' },
-                downloadTime: { '2b': '2-4 min', '7b': '6-10 min' }
+                description: 'Google\'s Gemma model family, lightweight and powerful',
+                tags: ['general', 'efficient'],
+                sizes: { '2b': '1.4GB', '7b': '5.0GB' },
+                downloadTime: { '2b': '2-4 min', '7b': '7-12 min' }
             },
             {
                 name: 'neural-chat',
                 variants: ['7b'],
-                description: 'Intel\'s conversational AI model, optimized for chat interactions',
-                tags: ['general', 'conversation'],
+                description: 'Fine-tuned for helpful, harmless, and honest conversations',
+                tags: ['chat', 'helpful'],
                 sizes: { '7b': '4.1GB' },
-                downloadTime: { '7b': '5-10 min' }
+                downloadTime: { '7b': '6-12 min' }
             }
         ];
-        
+
         return { success: true, models };
     } catch (error) {
-        return { success: false, error: error.message };
-    }
-});
-
-// Search Ollama library for additional models
-ipcMain.handle('search-ollama-library', async (event, searchQuery) => {
-    try {
-        console.log('Searching for models matching:', searchQuery);
-        
-        // Curated list of additional popular Ollama models with accurate metadata
-        const additionalModels = [
-            {
-                name: 'llama3',
-                variants: ['8b', '70b'],
-                description: 'Meta\'s latest Llama 3 model with improved performance and capabilities',
-                tags: ['general', 'latest'],
-                sizes: { '8b': '4.7GB', '70b': '40GB' },
-                downloadTime: { '8b': '6-12 min', '70b': '50-70 min' }
-            },
-            {
-                name: 'llama3.1',
-                variants: ['8b', '70b', '405b'],
-                description: 'Enhanced Llama 3.1 with extended context and better reasoning',
-                tags: ['general', 'latest', 'reasoning'],
-                sizes: { '8b': '4.7GB', '70b': '40GB', '405b': '231GB' },
-                downloadTime: { '8b': '6-12 min', '70b': '50-70 min', '405b': '4-6 hours' }
-            },
-            {
-                name: 'llama3.2',
-                variants: ['1b', '3b', '11b', '90b'],
-                description: 'Latest Llama 3.2 with multimodal capabilities and efficiency improvements',
-                tags: ['general', 'latest', 'multimodal'],
-                sizes: { '1b': '1.3GB', '3b': '2.0GB', '11b': '7.4GB', '90b': '55GB' },
-                downloadTime: { '1b': '2-4 min', '3b': '3-6 min', '11b': '10-15 min', '90b': '60-90 min' }
-            },
-            {
-                name: 'qwen2',
-                variants: ['0.5b', '1.5b', '7b', '72b'],
-                description: 'Alibaba\'s Qwen2 model series with strong multilingual capabilities',
-                tags: ['general', 'multilingual'],
-                sizes: { '0.5b': '352MB', '1.5b': '934MB', '7b': '4.4GB', '72b': '41GB' },
-                downloadTime: { '0.5b': '1-2 min', '1.5b': '2-3 min', '7b': '6-10 min', '72b': '50-70 min' }
-            },
-            {
-                name: 'vicuna',
-                variants: ['7b', '13b', '33b'],
-                description: 'Fine-tuned LLaMA model trained by conversations from ShareGPT',
-                tags: ['general', 'conversation'],
-                sizes: { '7b': '3.8GB', '13b': '7.3GB', '33b': '19GB' },
-                downloadTime: { '7b': '5-10 min', '13b': '10-15 min', '33b': '25-35 min' }
-            },
-            {
-                name: 'wizard-vicuna-uncensored',
-                variants: ['7b', '13b', '30b'],
-                description: 'Uncensored version of Wizard-Vicuna for creative and open conversations',
-                tags: ['general', 'uncensored'],
-                sizes: { '7b': '3.8GB', '13b': '7.3GB', '30b': '19GB' },
-                downloadTime: { '7b': '5-10 min', '13b': '10-15 min', '30b': '25-35 min' }
-            },
-            {
-                name: 'orca-mini',
-                variants: ['3b', '7b', '13b'],
-                description: 'Microsoft\'s Orca model optimized for reasoning and explanation',
-                tags: ['reasoning', 'explanation'],
-                sizes: { '3b': '1.9GB', '7b': '3.8GB', '13b': '7.3GB' },
-                downloadTime: { '3b': '3-5 min', '7b': '5-10 min', '13b': '10-15 min' }
-            },
-            {
-                name: 'nous-hermes2',
-                variants: ['10.7b', '34b'],
-                description: 'Nous Research\'s Hermes 2 model trained for helpfulness and accuracy',
-                tags: ['general', 'helpful'],
-                sizes: { '10.7b': '6.4GB', '34b': '19GB' },
-                downloadTime: { '10.7b': '8-12 min', '34b': '25-35 min' }
-            },
-            {
-                name: 'solar',
-                variants: ['10.7b'],
-                description: 'Upstage\'s Solar model with strong performance across various tasks',
-                tags: ['general', 'performance'],
-                sizes: { '10.7b': '6.1GB' },
-                downloadTime: { '10.7b': '8-12 min' }
-            },
-            {
-                name: 'openchat',
-                variants: ['7b'],
-                description: 'OpenChat model fine-tuned for conversational AI applications',
-                tags: ['conversation', 'general'],
-                sizes: { '7b': '4.1GB' },
-                downloadTime: { '7b': '5-10 min' }
-            },
-            {
-                name: 'starling-lm',
-                variants: ['7b'],
-                description: 'Berkeley\'s Starling model trained with RLAIF for improved helpfulness',
-                tags: ['helpful', 'general'],
-                sizes: { '7b': '4.1GB' },
-                downloadTime: { '7b': '5-10 min' }
-            },
-            {
-                name: 'dolphin-mixtral',
-                variants: ['8x7b'],
-                description: 'Uncensored Dolphin version of Mixtral with enhanced capabilities',
-                tags: ['general', 'uncensored', 'mixtral'],
-                sizes: { '8x7b': '26GB' },
-                downloadTime: { '8x7b': '30-40 min' }
-            },
-            {
-                name: 'wizardlm2',
-                variants: ['7b', '8x22b'],
-                description: 'Microsoft\'s WizardLM 2 with enhanced reasoning and instruction following',
-                tags: ['reasoning', 'instruction'],
-                sizes: { '7b': '4.1GB', '8x22b': '81GB' },
-                downloadTime: { '7b': '5-10 min', '8x22b': '2-3 hours' }
-            },
-            {
-                name: 'deepseek-coder',
-                variants: ['6.7b', '33b'],
-                description: 'DeepSeek\'s specialized coding model for programming tasks',
-                tags: ['coding', 'programming'],
-                sizes: { '6.7b': '3.8GB', '33b': '19GB' },
-                downloadTime: { '6.7b': '5-8 min', '33b': '25-35 min' }
-            },
-            {
-                name: 'tinyllama',
-                variants: ['1.1b'],
-                description: 'Compact 1.1B parameter model for lightweight applications',
-                tags: ['fast', 'lightweight'],
-                sizes: { '1.1b': '637MB' },
-                downloadTime: { '1.1b': '1-3 min' }
-            }
-        ];
-        
-        // Get locally installed models
-        let localModels = [];
-        try {
-            const { spawn } = require('child_process');
-            const ollamaProcess = spawn('ollama', ['list', '--format', 'json']);
-            let output = '';
-            
-            await new Promise((resolve) => {
-                ollamaProcess.stdout.on('data', (data) => {
-                    output += data.toString();
-                });
-                
-                ollamaProcess.on('close', (code) => {
-                    if (code === 0 && output.trim()) {
-                        try {
-                            const parsed = JSON.parse(output);
-                            localModels = parsed.models || [];
-                        } catch (e) {
-                            console.log('Could not parse local models:', e.message);
-                        }
-                    }
-                    resolve();
-                });
-            });
-        } catch (e) {
-            console.log('Could not get local models:', e.message);
-        }
-        
-        // Filter models by search query if provided
-        let filteredModels = additionalModels;
-        if (searchQuery && searchQuery.trim()) {
-            const query = searchQuery.toLowerCase();
-            filteredModels = additionalModels.filter(model => 
-                model.name.toLowerCase().includes(query) ||
-                model.description.toLowerCase().includes(query) ||
-                model.tags.some(tag => tag.toLowerCase().includes(query))
-            );
-        }
-        
-        // Format models for our UI and check if installed
-        const formattedModels = filteredModels.map(model => {
-            // Check if any variant is installed
-            const isInstalled = localModels.some(local => 
-                local.name && local.name.startsWith(model.name)
-            );
-            
-            return {
-                ...model,
-                isInstalled: isInstalled,
-                source: 'ollama-library'
-            };
-        });
-        
-        return { 
-            success: true, 
-            models: formattedModels,
-            query: searchQuery 
-        };
-        
-    } catch (error) {
+        console.error('Error getting available models:', error);
         return { success: false, error: error.message };
     }
 });
