@@ -1,4 +1,6 @@
 const { ipcRenderer } = require('electron');
+const path = require('path');
+const fs = require('fs');
 
 // DOM Elements
 const chatMessages = document.getElementById('chat-messages');
@@ -16,11 +18,16 @@ const refreshDrivesBtn = document.getElementById('refresh-drives');
 const drivesList = document.getElementById('drives-list');
 const autoRefreshIndicator = document.getElementById('auto-refresh-indicator');
 
+// Model browser elements
+const modelsGrid = document.getElementById('models-grid');
+const downloadedModelsList = document.getElementById('downloaded-models-list');
+
 // State
 let isLoading = false;
 let autoRefreshInterval = null;
 let activeDrive = null; // Store which drive is currently used for models
 let currentModel = '';
+let downloadingModels = new Set();
 
 // Initialize the app
 async function initialize() {
@@ -142,6 +149,21 @@ function setupEventListeners() {
             closeSettings();
         }
     });
+
+    // Model browser functionality
+    refreshModelsBtn.addEventListener('click', loadAvailableModels);
+    document.querySelectorAll('.suggestion-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const message = btn.getAttribute('data-message');
+            messageInput.value = message;
+            sendMessage();
+        });
+    });
+
+    // Listen for download progress
+    ipcRenderer.on('download-progress', (event, data) => {
+        updateDownloadProgress(data);
+    });
 }
 
 // Auto-resize textarea
@@ -262,30 +284,33 @@ function setLoading(loading) {
 // Settings Modal Functions
 let driveRefreshInterval = null;
 
-function openSettings() {
-    settingsModal.classList.remove('hidden');
+async function openSettings() {
+    settingsModal.style.display = 'block';
     refreshDrives();
     
-    // Auto-refresh drives every 3 seconds while settings is open
-    driveRefreshInterval = setInterval(() => {
-        refreshDrives();
-    }, 3000);
+    // Load available models for download
+    await loadAvailableModels();
     
-    // Show auto-refresh indicator
-    autoRefreshIndicator.classList.remove('hidden');
+    // Load downloaded models
+    await loadDownloadedModels();
+    
+    // Start external drive monitoring
+    refreshDrives();
+    autoRefreshIndicator.style.display = 'block';
+    autoRefreshInterval = setInterval(refreshDrives, 3000);
 }
 
 function closeSettings() {
-    settingsModal.classList.add('hidden');
+    settingsModal.style.display = 'none';
     
-    // Stop auto-refresh when settings is closed
-    if (driveRefreshInterval) {
-        clearInterval(driveRefreshInterval);
-        driveRefreshInterval = null;
+    // Clear auto-refresh interval
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
     }
     
     // Hide auto-refresh indicator
-    autoRefreshIndicator.classList.add('hidden');
+    autoRefreshIndicator.style.display = 'none';
 }
 
 async function refreshDrives() {
@@ -468,6 +493,239 @@ ${result.originalPath}`);
             button.textContent = originalText;
             button.disabled = false;
         });
+}
+
+// Model Browser Functions
+async function loadAvailableModels() {
+    try {
+        const result = await ipcRenderer.invoke('get-available-models');
+        
+        if (result.success) {
+            displayAvailableModels(result.models);
+        } else {
+            modelsGrid.innerHTML = '<div class="error-message">Failed to load models: ' + result.error + '</div>';
+        }
+    } catch (error) {
+        modelsGrid.innerHTML = '<div class="error-message">Error loading models: ' + error.message + '</div>';
+    }
+}
+
+function displayAvailableModels(models) {
+    modelsGrid.innerHTML = '';
+    
+    models.forEach(model => {
+        model.variants.forEach(variant => {
+            const modelCard = createModelCard(model, variant);
+            modelsGrid.appendChild(modelCard);
+        });
+    });
+}
+
+function createModelCard(model, variant) {
+    const card = document.createElement('div');
+    card.className = 'model-card';
+    
+    const fullName = `${model.name}:${variant}`;
+    const isDownloading = downloadingModels.has(fullName);
+    
+    card.innerHTML = `
+        <div class="model-header">
+            <div class="model-name">${model.name}:${variant}</div>
+            <div class="model-size">${model.sizes[variant]}</div>
+        </div>
+        <div class="model-description">${model.description}</div>
+        <div class="model-tags">
+            ${model.tags.map(tag => `<span class="model-tag ${tag}">${tag}</span>`).join('')}
+        </div>
+        <div class="download-info">
+            <small>Download time: ~${model.downloadTime[variant]}</small>
+        </div>
+        <button class="download-btn" ${isDownloading ? 'disabled' : ''} 
+                onclick="downloadModel('${model.name}', '${variant}', this)">
+            ${isDownloading ? 'Downloading...' : 'Download Model'}
+        </button>
+        <div class="download-progress" style="display: none;">
+            <div class="download-progress-bar" style="width: 0%"></div>
+        </div>
+    `;
+    
+    return card;
+}
+
+async function downloadModel(modelName, variant, buttonElement) {
+    const fullName = `${modelName}:${variant}`;
+    
+    // Check if external drive is configured
+    try {
+        const configPath = path.join(__dirname, 'ollama-config.json');
+        
+        if (!fs.existsSync(configPath)) {
+            alert('Please configure an external drive first in the External Drives section below.');
+            return;
+        }
+        
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (!config.externalPath) {
+            alert('No external drive configured. Please select an external drive first.');
+            return;
+        }
+    } catch (error) {
+        alert('Please configure an external drive first.');
+        return;
+    }
+    
+    // Update UI
+    downloadingModels.add(fullName);
+    buttonElement.textContent = 'Downloading...';
+    buttonElement.disabled = true;
+    buttonElement.classList.add('downloading');
+    
+    const progressContainer = buttonElement.parentElement.querySelector('.download-progress');
+    progressContainer.style.display = 'block';
+    
+    try {
+        const result = await ipcRenderer.invoke('download-model', modelName, variant);
+        
+        if (result.success) {
+            buttonElement.textContent = 'Downloaded ✓';
+            buttonElement.style.background = '#28a745';
+            progressContainer.style.display = 'none';
+            
+            // Refresh downloaded models list
+            await loadDownloadedModels();
+            await loadModels(); // Refresh model selector
+            
+            setTimeout(() => {
+                buttonElement.textContent = 'Download Model';
+                buttonElement.disabled = false;
+                buttonElement.classList.remove('downloading');
+                buttonElement.style.background = '';
+            }, 3000);
+        } else {
+            buttonElement.textContent = 'Download Failed';
+            buttonElement.style.background = '#dc3545';
+            alert('Download failed: ' + result.error);
+            
+            setTimeout(() => {
+                buttonElement.textContent = 'Download Model';
+                buttonElement.disabled = false;
+                buttonElement.classList.remove('downloading');
+                buttonElement.style.background = '';
+            }, 3000);
+        }
+    } catch (error) {
+        buttonElement.textContent = 'Download Failed';
+        buttonElement.style.background = '#dc3545';
+        alert('Download error: ' + error.message);
+        
+        setTimeout(() => {
+            buttonElement.textContent = 'Download Model';
+            buttonElement.disabled = false;
+            buttonElement.classList.remove('downloading');
+            buttonElement.style.background = '';
+        }, 3000);
+    }
+    
+    downloadingModels.delete(fullName);
+}
+
+function updateDownloadProgress(data) {
+    const modelCards = modelsGrid.querySelectorAll('.model-card');
+    
+    modelCards.forEach(card => {
+        const downloadBtn = card.querySelector('.download-btn');
+        if (downloadBtn && downloadBtn.textContent.includes('Downloading')) {
+            const modelName = card.querySelector('.model-name').textContent;
+            if (modelName === data.model) {
+                const progressBar = card.querySelector('.download-progress-bar');
+                if (progressBar && data.message) {
+                    // Simple progress indication (could be enhanced with actual percentage)
+                    downloadBtn.textContent = 'Downloading... ' + data.message.substring(0, 20) + '...';
+                }
+            }
+        }
+    });
+}
+
+async function loadDownloadedModels() {
+    try {
+        const result = await ipcRenderer.invoke('get-downloaded-models');
+        
+        if (result.success) {
+            displayDownloadedModels(result.models);
+        } else {
+            downloadedModelsList.innerHTML = '<div class="error-message">Failed to load downloaded models</div>';
+        }
+    } catch (error) {
+        downloadedModelsList.innerHTML = '<div class="error-message">Error loading downloaded models</div>';
+    }
+}
+
+function displayDownloadedModels(models) {
+    if (models.length === 0) {
+        downloadedModelsList.innerHTML = '<div class="no-models">No models downloaded yet</div>';
+        return;
+    }
+    
+    downloadedModelsList.innerHTML = '';
+    
+    models.forEach(model => {
+        const modelElement = document.createElement('div');
+        modelElement.className = 'downloaded-model';
+        
+        modelElement.innerHTML = `
+            <div class="downloaded-model-info">
+                <div class="downloaded-model-name">${model.name}</div>
+                <div class="downloaded-model-size">${model.size}</div>
+            </div>
+            <div class="downloaded-model-actions">
+                <button class="use-model-btn" onclick="useModel('${model.name}')">Use in Chat</button>
+                <button class="delete-model-btn" onclick="deleteModel('${model.name}')">Delete</button>
+            </div>
+        `;
+        
+        downloadedModelsList.appendChild(modelElement);
+    });
+}
+
+async function useModel(modelName) {
+    // Set the model in the chat selector
+    const modelOption = Array.from(modelSelect.options).find(option => option.value === modelName);
+    if (modelOption) {
+        modelSelect.value = modelName;
+        closeSettings();
+        
+        // Add a system message to indicate model switch
+        addMessage(`Switched to ${modelName}`, 'system');
+    } else {
+        // Add model to selector if not present
+        const option = document.createElement('option');
+        option.value = modelName;
+        option.textContent = modelName;
+        modelSelect.appendChild(option);
+        modelSelect.value = modelName;
+        closeSettings();
+        
+        addMessage(`Switched to ${modelName}`, 'system');
+    }
+}
+
+async function deleteModel(modelName) {
+    if (confirm(`Are you sure you want to delete ${modelName}? This will free up space on your external drive.`)) {
+        try {
+            const result = await ipcRenderer.invoke('delete-model', modelName);
+            
+            if (result.success) {
+                await loadDownloadedModels();
+                await loadModels(); // Refresh model selector
+                addMessage(`Deleted model ${modelName}`, 'system');
+            } else {
+                alert('Failed to delete model: ' + result.error);
+            }
+        } catch (error) {
+            alert('Error deleting model: ' + error.message);
+        }
+    }
 }
 
 // Periodic status check

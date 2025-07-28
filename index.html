@@ -65,14 +65,34 @@
         </div>
 
         <!-- Settings Modal -->
-        <div id="settings-modal" class="settings-modal hidden">
-            <div class="settings-content">
-                <div class="settings-header">
-                    <h2>⚙️ External Drive Settings</h2>
-                    <button id="close-settings" class="close-btn">✕</button>
+        <div id="settings-modal" class="settings-modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>⚙️ Settings</h2>
+                    <button id="close-settings" class="close-btn">&times;</button>
                 </div>
                 
-                <div class="settings-body">
+                <div class="modal-body">
+                    <!-- Models Library Section -->
+                    <div class="setting-section">
+                        <h3>📚 Models Library</h3>
+                        <p class="section-description">Browse and download AI models to your external drive</p>
+                        
+                        <div class="models-grid" id="models-grid">
+                            <div class="loading-models">
+                                <div class="spinner"></div>
+                                <span>Loading available models...</span>
+                            </div>
+                        </div>
+                        
+                        <div class="downloaded-models">
+                            <h4>Downloaded Models</h4>
+                            <div id="downloaded-models-list" class="downloaded-list">
+                                <div class="no-models">No models downloaded yet</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Current Storage Location -->
                     <div class="setting-section">
                         <h3>Model Storage Location</h3>
@@ -80,18 +100,15 @@
                             <span id="current-storage-path">External drive required</span>
                             <span class="storage-type local">⚠️ Lightweight App</span>
                         </div>
-                        <p class="storage-note">This app requires external storage to keep your computer lightweight. Select an external drive below to store models.</p>
+                        <p class="storage-note">This app requires external storage to prevent local storage bloat. Please select an external drive for model storage.</p>
                     </div>
 
                     <!-- External Drives -->
                     <div class="setting-section">
                         <h3>External Drives</h3>
-                        <div class="drives-header">
-                            <span>Available external drives for model storage:</span>
-                            <div class="drives-controls">
-                                <span id="auto-refresh-indicator" class="auto-refresh-indicator hidden">🔄 Auto-refreshing...</span>
-                                <button id="refresh-drives" class="refresh-drives-btn">🔄 Refresh</button>
-                            </div>
+                        <div class="drives-controls">
+                            <button id="refresh-drives" class="refresh-drives-btn">🔄 Refresh</button>
+                            <span id="auto-refresh-indicator" class="auto-refresh-indicator" style="display: none;">🔄 Auto-refreshing...</span>
                         </div>
                         <div id="drives-list" class="drives-list">
                             <div class="scanning-drives">Scanning for drives...</div>

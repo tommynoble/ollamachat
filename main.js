@@ -63,6 +63,265 @@ app.on('activate', () => {
     }
 });
 
+// IPC Handlers
+
+// Existing chat handler
+ipcMain.handle('chat-message', async (event, message, model) => {
+    return new Promise((resolve) => {
+        const pythonArgs = [
+            path.join(__dirname, 'ollama_chat.py'),
+            '--message', message,
+            '--model', model || 'llama2',
+            '--json'
+        ];
+        
+        const pythonProcess = spawn('python3', pythonArgs);
+        let output = '';
+        let error = '';
+        
+        pythonProcess.stdout.on('data', (data) => {
+            output += data.toString();
+        });
+        
+        pythonProcess.stderr.on('data', (data) => {
+            error += data.toString();
+        });
+        
+        pythonProcess.on('close', (code) => {
+            if (code === 0) {
+                try {
+                    const response = JSON.parse(output);
+                    resolve(response);
+                } catch (e) {
+                    resolve({ error: 'Failed to parse response' });
+                }
+            } else {
+                resolve({ error: error || 'Python process failed' });
+            }
+        });
+    });
+});
+
+// Get available models from Ollama library
+ipcMain.handle('get-available-models', async () => {
+    try {
+        // Popular Ollama models with metadata
+        const models = [
+            {
+                name: 'llama2',
+                variants: ['7b', '13b', '70b'],
+                description: 'Meta\'s Llama 2 model, excellent for general conversation and reasoning',
+                tags: ['general', 'reasoning'],
+                sizes: { '7b': '3.8GB', '13b': '7.3GB', '70b': '39GB' },
+                downloadTime: { '7b': '5-10 min', '13b': '10-15 min', '70b': '45-60 min' }
+            },
+            {
+                name: 'mistral',
+                variants: ['7b', '8x7b'],
+                description: 'Fast and capable model, great balance of performance and speed',
+                tags: ['general', 'fast'],
+                sizes: { '7b': '4.1GB', '8x7b': '26GB' },
+                downloadTime: { '7b': '5-10 min', '8x7b': '30-40 min' }
+            },
+            {
+                name: 'codellama',
+                variants: ['7b', '13b', '34b'],
+                description: 'Specialized for code generation, debugging, and programming tasks',
+                tags: ['coding', 'programming'],
+                sizes: { '7b': '3.8GB', '13b': '7.3GB', '34b': '19GB' },
+                downloadTime: { '7b': '5-10 min', '13b': '10-15 min', '34b': '25-35 min' }
+            },
+            {
+                name: 'phi3',
+                variants: ['mini', 'small', 'medium'],
+                description: 'Microsoft\'s compact yet powerful model, great for resource-constrained environments',
+                tags: ['fast', 'efficient'],
+                sizes: { 'mini': '2.3GB', 'small': '7.9GB', 'medium': '14GB' },
+                downloadTime: { 'mini': '3-5 min', 'small': '8-12 min', 'medium': '15-20 min' }
+            },
+            {
+                name: 'gemma',
+                variants: ['2b', '7b'],
+                description: 'Google\'s lightweight model family, optimized for efficiency',
+                tags: ['fast', 'efficient'],
+                sizes: { '2b': '1.4GB', '7b': '4.8GB' },
+                downloadTime: { '2b': '2-4 min', '7b': '6-10 min' }
+            },
+            {
+                name: 'neural-chat',
+                variants: ['7b'],
+                description: 'Intel\'s conversational AI model, optimized for chat interactions',
+                tags: ['general', 'conversation'],
+                sizes: { '7b': '4.1GB' },
+                downloadTime: { '7b': '5-10 min' }
+            }
+        ];
+        
+        return { success: true, models };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// Download a model
+ipcMain.handle('download-model', async (event, modelName, variant) => {
+    return new Promise((resolve) => {
+        const fullModelName = variant ? `${modelName}:${variant}` : modelName;
+        console.log(`Starting download of ${fullModelName}`);
+        
+        // Set OLLAMA_MODELS environment variable if external drive is configured
+        let env = { ...process.env };
+        try {
+            const configPath = path.join(__dirname, 'ollama-config.json');
+            if (require('fs').existsSync(configPath)) {
+                const config = JSON.parse(require('fs').readFileSync(configPath, 'utf8'));
+                if (config.externalPath) {
+                    env.OLLAMA_MODELS = config.externalPath;
+                }
+            }
+        } catch (e) {
+            console.log('No external drive config found, using default path');
+        }
+        
+        const ollamaProcess = spawn('ollama', ['pull', fullModelName], { env });
+        let output = '';
+        let error = '';
+        
+        ollamaProcess.stdout.on('data', (data) => {
+            const text = data.toString();
+            output += text;
+            
+            // Parse progress from ollama output
+            const lines = text.split('\n');
+            for (const line of lines) {
+                if (line.includes('pulling') || line.includes('downloading')) {
+                    // Send progress updates to renderer
+                    event.sender.send('download-progress', {
+                        model: fullModelName,
+                        status: 'downloading',
+                        message: line.trim()
+                    });
+                }
+            }
+        });
+        
+        ollamaProcess.stderr.on('data', (data) => {
+            error += data.toString();
+        });
+        
+        ollamaProcess.on('close', (code) => {
+            if (code === 0) {
+                console.log(`Successfully downloaded ${fullModelName}`);
+                resolve({ success: true, model: fullModelName });
+            } else {
+                console.error(`Failed to download ${fullModelName}:`, error);
+                resolve({ success: false, error: error || 'Download failed' });
+            }
+        });
+    });
+});
+
+// Get downloaded models
+ipcMain.handle('get-downloaded-models', async () => {
+    return new Promise((resolve) => {
+        // Set OLLAMA_MODELS environment variable if external drive is configured
+        let env = { ...process.env };
+        try {
+            const configPath = path.join(__dirname, 'ollama-config.json');
+            if (require('fs').existsSync(configPath)) {
+                const config = JSON.parse(require('fs').readFileSync(configPath, 'utf8'));
+                if (config.externalPath) {
+                    env.OLLAMA_MODELS = config.externalPath;
+                }
+            }
+        } catch (e) {
+            console.log('No external drive config found, using default path');
+        }
+        
+        const ollamaProcess = spawn('ollama', ['list'], { env });
+        let output = '';
+        let error = '';
+        
+        ollamaProcess.stdout.on('data', (data) => {
+            output += data.toString();
+        });
+        
+        ollamaProcess.stderr.on('data', (data) => {
+            error += data.toString();
+        });
+        
+        ollamaProcess.on('close', (code) => {
+            if (code === 0) {
+                try {
+                    const lines = output.trim().split('\n');
+                    const models = [];
+                    
+                    // Skip header line and parse model data
+                    for (let i = 1; i < lines.length; i++) {
+                        const line = lines[i].trim();
+                        if (line) {
+                            const parts = line.split(/\s+/);
+                            if (parts.length >= 3) {
+                                models.push({
+                                    name: parts[0],
+                                    id: parts[1],
+                                    size: parts[2],
+                                    modified: parts.slice(3).join(' ')
+                                });
+                            }
+                        }
+                    }
+                    
+                    resolve({ success: true, models });
+                } catch (e) {
+                    resolve({ success: false, error: 'Failed to parse model list' });
+                }
+            } else {
+                resolve({ success: false, error: error || 'Failed to get model list' });
+            }
+        });
+    });
+});
+
+// Delete a model
+ipcMain.handle('delete-model', async (event, modelName) => {
+    return new Promise((resolve) => {
+        // Set OLLAMA_MODELS environment variable if external drive is configured
+        let env = { ...process.env };
+        try {
+            const configPath = path.join(__dirname, 'ollama-config.json');
+            if (require('fs').existsSync(configPath)) {
+                const config = JSON.parse(require('fs').readFileSync(configPath, 'utf8'));
+                if (config.externalPath) {
+                    env.OLLAMA_MODELS = config.externalPath;
+                }
+            }
+        } catch (e) {
+            console.log('No external drive config found, using default path');
+        }
+        
+        const ollamaProcess = spawn('ollama', ['rm', modelName], { env });
+        let output = '';
+        let error = '';
+        
+        ollamaProcess.stdout.on('data', (data) => {
+            output += data.toString();
+        });
+        
+        ollamaProcess.stderr.on('data', (data) => {
+            error += data.toString();
+        });
+        
+        ollamaProcess.on('close', (code) => {
+            if (code === 0) {
+                resolve({ success: true });
+            } else {
+                resolve({ success: false, error: error || 'Failed to delete model' });
+            }
+        });
+    });
+});
+
 // IPC handlers for communicating with renderer process
 ipcMain.handle('send-message', async (event, message) => {
     return new Promise((resolve, reject) => {
