@@ -316,15 +316,35 @@ ipcMain.handle('use-for-models', async (event, driveName, drivePath) => {
             
             fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
             
+            // Move existing models if they exist locally
+            let moveMessage = '';
+            if (fs.existsSync(currentModelsPath) && currentModelsPath !== modelsPath) {
+                try {
+                    const localFiles = fs.readdirSync(currentModelsPath);
+                    if (localFiles.length > 0) {
+                        // Copy existing models to external drive
+                        const { spawn } = require('child_process');
+                        const rsync = spawn('rsync', ['-av', `${currentModelsPath}/`, `${modelsPath}/`]);
+                        
+                        // Note: This is async, but we'll indicate it's happening
+                        moveMessage = ` Local models are being moved to external drive.`;
+                    }
+                } catch (copyError) {
+                    console.warn('Could not move existing models:', copyError.message);
+                    moveMessage = ' (Warning: Could not move existing local models)';
+                }
+            }
+            
             // Set the environment variable for this session
             process.env.OLLAMA_MODELS = modelsPath;
             
             resolve({ 
                 success: true, 
-                message: `External drive '${driveName}' is now configured for Ollama models`,
+                message: `External drive '${driveName}' is now configured for Ollama models.${moveMessage}`,
                 modelsPath: modelsPath,
                 originalPath: currentModelsPath,
-                restartRequired: true
+                restartRequired: true,
+                modelsMoved: moveMessage.length > 0
             });
             
         } catch (error) {

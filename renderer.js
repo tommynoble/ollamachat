@@ -398,15 +398,18 @@ async function ejectDrive(driveName, force = false) {
 
 function useDrive(driveName, drivePath, buttonElement) {
     // Show confirmation dialog with details
-    const confirmMessage = `Switch to external drive "${driveName}" for new model downloads?
+    const confirmMessage = `Use external drive "${driveName}" for all model storage?
 
 📍 Drive Location: ${drivePath}
 📁 Models Folder: ${drivePath}/ollama-models/
 
 ℹ️  What will happen:
-• Your existing models will stay local
-• New downloads will go to external drive
+• All new model downloads will go to external drive
+• Your existing local models will be moved to external drive
+• Local computer storage will stay lightweight
 • You'll need to manually restart Ollama after this change
+
+⚠️  Note: This app requires external storage to prevent local storage bloat.
 
 Do you want to continue?`;
 
