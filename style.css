@@ -645,6 +645,16 @@ body {
     background: #4338ca;
 }
 
+.use-drive-btn.active {
+    background: #10b981;
+    color: white;
+    cursor: not-allowed;
+}
+
+.use-drive-btn.active:hover {
+    background: #10b981;
+}
+
 .eject-btn {
     background: #f3f4f6;
     color: #374151;

@@ -322,7 +322,7 @@ function displayDrives(drives) {
                 </div>
             </div>
             <div class="drive-actions">
-                <button class="use-drive-btn" onclick="useDrive('${drive.name}', '${drive.path}')">
+                <button class="use-drive-btn" onclick="useDrive('${drive.name}', '${drive.path}', this)">
                     Use for Models
                 </button>
                 <button class="eject-btn" onclick="showEjectOptions('${drive.name}')">
@@ -396,9 +396,69 @@ async function ejectDrive(driveName, force = false) {
     }
 }
 
-function useDrive(driveName, drivePath) {
-    // TODO: Implement switching Ollama to use external drive
-    alert(`Feature coming soon: Switch to use ${driveName} for model storage`);
+function useDrive(driveName, drivePath, buttonElement) {
+    // Show confirmation dialog with details
+    const confirmMessage = `Switch to external drive "${driveName}" for new model downloads?
+
+📍 Drive Location: ${drivePath}
+📁 Models Folder: ${drivePath}/ollama-models/
+
+ℹ️  What will happen:
+• Your existing models will stay local
+• New downloads will go to external drive
+• You'll need to manually restart Ollama after this change
+
+Do you want to continue?`;
+
+    if (!confirm(confirmMessage)) {
+        return; // User cancelled
+    }
+
+    // Show loading state
+    const button = buttonElement;
+    const originalText = button.textContent;
+    button.textContent = 'Setting up...';
+    button.disabled = true;
+
+    // Call the backend to set up external drive
+    window.electronAPI.invoke('use-for-models', driveName, drivePath)
+        .then(result => {
+            if (result.success) {
+                // Show success message with restart instruction
+                alert(`✅ Success! External drive "${driveName}" is now configured for Ollama models.
+
+📁 Models will be stored at:
+${result.modelsPath}
+
+⚠️  IMPORTANT: Please restart Ollama manually for this change to take effect.
+
+Your existing models remain at:
+${result.originalPath}`);
+
+                // Update button state
+                button.textContent = 'Currently Used ✓';
+                button.classList.add('active');
+                button.disabled = true;
+
+                // Refresh the drives list to show updated state
+                refreshDrives();
+            } else {
+                // Show error message
+                alert(`❌ Failed to setup external drive: ${result.error}`);
+                
+                // Restore button state
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error setting up external drive:', error);
+            alert(`❌ Error: ${error.message || error}`);
+            
+            // Restore button state
+            button.textContent = originalText;
+            button.disabled = false;
+        });
 }
 
 // Periodic status check

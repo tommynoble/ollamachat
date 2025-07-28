@@ -276,3 +276,63 @@ ipcMain.handle('eject-drive', async (event, driveName, force = false) => {
         });
     });
 }); 
+
+// Use external drive for Ollama models
+ipcMain.handle('use-for-models', async (event, driveName, drivePath) => {
+    return new Promise((resolve, reject) => {
+        const fs = require('fs');
+        const path = require('path');
+        const { spawn } = require('child_process');
+        
+        try {
+            // Create the ollama-models directory structure on external drive
+            const modelsPath = path.join(drivePath, 'ollama-models');
+            const blobsPath = path.join(modelsPath, 'blobs');
+            const manifestsPath = path.join(modelsPath, 'manifests');
+            
+            // Create directories if they don't exist
+            if (!fs.existsSync(modelsPath)) {
+                fs.mkdirSync(modelsPath, { recursive: true });
+            }
+            if (!fs.existsSync(blobsPath)) {
+                fs.mkdirSync(blobsPath, { recursive: true });
+            }
+            if (!fs.existsSync(manifestsPath)) {
+                fs.mkdirSync(manifestsPath, { recursive: true });
+            }
+            
+            // Get current OLLAMA_MODELS path to store as fallback
+            const currentModelsPath = process.env.OLLAMA_MODELS || '/Users/yevetteasante/.ollama/models';
+            
+            // Store the configuration in a file for persistence
+            const configPath = path.join(__dirname, 'ollama-config.json');
+            const config = {
+                originalPath: currentModelsPath,
+                externalPath: modelsPath,
+                usingExternal: true,
+                driveName: driveName,
+                timestamp: new Date().toISOString()
+            };
+            
+            fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+            
+            // Set the environment variable for this session
+            process.env.OLLAMA_MODELS = modelsPath;
+            
+            resolve({ 
+                success: true, 
+                message: `External drive '${driveName}' is now configured for Ollama models`,
+                modelsPath: modelsPath,
+                originalPath: currentModelsPath,
+                restartRequired: true
+            });
+            
+        } catch (error) {
+            console.error('Error setting up external drive for models:', error);
+            resolve({ 
+                success: false, 
+                error: `Failed to setup external drive: ${error.message}` 
+            });
+        }
+    });
+}); 
