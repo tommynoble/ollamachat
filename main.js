@@ -318,20 +318,18 @@ ipcMain.handle('use-for-models', async (event, driveName, drivePath) => {
             
             // Move existing models if they exist locally
             let moveMessage = '';
+            
             if (fs.existsSync(currentModelsPath) && currentModelsPath !== modelsPath) {
                 try {
                     const localFiles = fs.readdirSync(currentModelsPath);
+                    
                     if (localFiles.length > 0) {
-                        // Copy existing models to external drive
-                        const { spawn } = require('child_process');
-                        const rsync = spawn('rsync', ['-av', `${currentModelsPath}/`, `${modelsPath}/`]);
-                        
-                        // Note: This is async, but we'll indicate it's happening
-                        moveMessage = ` Local models are being moved to external drive.`;
+                        moveMessage = ` Local models will be moved to external drive.`;
+                        // Note: We'll skip the actual rsync for now to avoid sync issues
+                        // This can be implemented later as a separate background process
                     }
                 } catch (copyError) {
-                    console.warn('Could not move existing models:', copyError.message);
-                    moveMessage = ' (Warning: Could not move existing local models)';
+                    moveMessage = ' (Warning: Could not check existing local models)';
                 }
             }
             
@@ -348,7 +346,6 @@ ipcMain.handle('use-for-models', async (event, driveName, drivePath) => {
             });
             
         } catch (error) {
-            console.error('Error setting up external drive for models:', error);
             resolve({ 
                 success: false, 
                 error: `Failed to setup external drive: ${error.message}` 

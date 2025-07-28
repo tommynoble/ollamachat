@@ -18,6 +18,8 @@ const autoRefreshIndicator = document.getElementById('auto-refresh-indicator');
 
 // State
 let isLoading = false;
+let autoRefreshInterval = null;
+let activeDrive = null; // Store which drive is currently used for models
 let currentModel = '';
 
 // Initialize the app
@@ -322,8 +324,10 @@ function displayDrives(drives) {
                 </div>
             </div>
             <div class="drive-actions">
-                <button class="use-drive-btn" onclick="useDrive('${drive.name}', '${drive.path}', this)">
-                    Use for Models
+                <button class="use-drive-btn ${activeDrive === drive.name ? 'active' : ''}" 
+                        onclick="useDrive('${drive.name}', '${drive.path}', this)"
+                        ${activeDrive === drive.name ? 'disabled' : ''}>
+                    ${activeDrive === drive.name ? 'Currently Used ✓' : 'Use for Models'}
                 </button>
                 <button class="eject-btn" onclick="showEjectOptions('${drive.name}')">
                     ⏏️ Eject
@@ -424,7 +428,8 @@ Do you want to continue?`;
     button.disabled = true;
 
     // Call the backend to set up external drive
-    window.electronAPI.invoke('use-for-models', driveName, drivePath)
+    const { ipcRenderer } = require('electron');
+    ipcRenderer.invoke('use-for-models', driveName, drivePath)
         .then(result => {
             if (result.success) {
                 // Show success message with restart instruction
@@ -438,13 +443,15 @@ ${result.modelsPath}
 Your existing models remain at:
 ${result.originalPath}`);
 
+                // Store which drive is active
+                activeDrive = driveName;
+                
                 // Update button state
                 button.textContent = 'Currently Used ✓';
                 button.classList.add('active');
                 button.disabled = true;
 
-                // Refresh the drives list to show updated state
-                refreshDrives();
+                // Don't refresh drives list to avoid overwriting our button state
             } else {
                 // Show error message
                 alert(`❌ Failed to setup external drive: ${result.error}`);
@@ -455,7 +462,6 @@ ${result.originalPath}`);
             }
         })
         .catch(error => {
-            console.error('Error setting up external drive:', error);
             alert(`❌ Error: ${error.message || error}`);
             
             // Restore button state
