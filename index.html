@@ -97,10 +97,18 @@
                         <div class="welcome-icon">🚀</div>
                         <h2>Welcome to AI Chat!</h2>
                         <p>Select a model above and start your conversation.</p>
+                        
+
+                        
                         <div class="quick-suggestions">
-                            <button class="suggestion-btn" data-message="Hello! Can you help me write a Python script?">💻 Code Help</button>
-                            <button class="suggestion-btn" data-message="Can you explain quantum computing in simple terms?">🧠 Explain Concepts</button>
-                            <button class="suggestion-btn" data-message="Write a creative short story about space exploration">✨ Creative Writing</button>
+                            <button class="suggestion-btn" data-message="Hello! Can you help me with a coding question?">💻 Code Help</button>
+                            <button class="suggestion-btn" data-message="Explain a complex topic in simple terms">🧠 Explain Concepts</button>
+                            <button class="suggestion-btn" data-message="Help me write something creative">✨ Creative Writing</button>
+                        </div>
+                        
+                        <div class="chat-quick-actions">
+                            <button class="quick-action-btn" onclick="addMessage('/help', 'user'); handleSpecialCommands('/help', document.getElementById('model-select').value)">📖 Chat Help</button>
+                            <button class="quick-action-btn" onclick="addMessage('/clear', 'user'); handleSpecialCommands('/clear', document.getElementById('model-select').value)">🗑️ Clear History</button>
                         </div>
                     </div>
                 </div>

@@ -37,7 +37,7 @@ async function checkDownloadedModels() {
             console.log('📦 Downloaded models:', Array.from(downloadedModelsList));
         } else {
             // Fallback: try using ollama list
-            const response = await fetch('http://localhost:11434/api/tags');
+            const response = await fetch('http://127.0.0.1:11434/api/tags');
             if (response.ok) {
                 const data = await response.json();
                 downloadedModelsList.clear();
@@ -238,10 +238,20 @@ function setupEventListeners() {
     });
 }
 
-// Auto-resize textarea
+// Enhanced auto-resize textarea with smooth transitions
 function autoResizeTextarea() {
     messageInput.style.height = 'auto';
-    messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+    const maxHeight = 160; // Match CSS max-height
+    const minHeight = 24;  // Match CSS min-height
+    const newHeight = Math.max(minHeight, Math.min(messageInput.scrollHeight, maxHeight));
+    messageInput.style.height = newHeight + 'px';
+    
+    // Add visual feedback for overflow
+    if (messageInput.scrollHeight > maxHeight) {
+        messageInput.style.overflowY = 'auto';
+    } else {
+        messageInput.style.overflowY = 'hidden';
+    }
 }
 
 // Update send button state
@@ -250,18 +260,94 @@ function updateSendButton() {
     sendButton.disabled = !hasText || isLoading;
 }
 
-// Chat Functions
+// Enhanced Chat Functions with phi model optimizations
 async function sendMessage() {
     const message = messageInput.value.trim();
     const selectedModel = modelSelect.value;
     
     if (!message) return;
+    if (!selectedModel) {
+        addMessage('Please select a model first.', 'system');
+        return;
+    }
     
     // Add user message to chat
     addMessage(message, 'user');
     messageInput.value = '';
+    autoResizeTextarea(); // Reset textarea height
     
-    // Check for model switching commands
+    // Check for special commands
+    if (await handleSpecialCommands(message, selectedModel)) {
+        return;
+    }
+    
+    try {
+        // Show enhanced typing indicator
+        const typingDiv = document.createElement('div');
+        typingDiv.classList.add('message', 'assistant', 'typing');
+        typingDiv.innerHTML = `
+            <div class="message-header">
+                <span class="sender">Assistant</span>
+                <span class="model-badge">${selectedModel}</span>
+            </div>
+            <div class="message-content">
+                <div class="typing-animation">
+                    <span class="typing-dot"></span>
+                    <span class="typing-dot"></span>
+                    <span class="typing-dot"></span>
+                </div>
+                <span class="thinking-text">Thinking...</span>
+            </div>
+        `;
+        chatMessages.appendChild(typingDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        // Send message to backend with timing
+        const startTime = Date.now();
+        const response = await ipcRenderer.invoke('chat-message', message, selectedModel);
+        const responseTime = Date.now() - startTime;
+        
+        // Remove typing indicator
+        typingDiv.remove();
+        
+        if (response.success) {
+            // Add formatted response with metadata
+            addEnhancedMessage(response.message, 'assistant', {
+                model: selectedModel,
+                responseTime: responseTime,
+                tokens: response.tokens,
+                duration: response.duration
+            });
+        } else {
+            // Handle external drive requirement
+            if (response.requiresExternalDrive) {
+                addMessage('⚙️ External storage required. Please configure in Settings.', 'system');
+            } else {
+                addMessage(`❌ Error: ${response.error}`, 'system');
+                
+                // Add helpful suggestions for common errors
+                if (response.error.includes('not running')) {
+                    addMessage('💡 Try: Run "ollama serve" in your terminal to start the Ollama server.', 'system');
+                } else if (response.error.includes('timed out')) {
+                    addMessage('💡 Try: Use a smaller model or ask a simpler question.', 'system');
+                }
+            }
+        }
+    } catch (error) {
+        // Remove typing indicator
+        const typingIndicator = document.querySelector('.typing');
+        if (typingIndicator) typingIndicator.remove();
+        
+        addMessage(`❌ Unexpected error: ${error.message}`, 'system');
+        console.error('Chat error:', error);
+    }
+}
+
+// Handle special chat commands
+async function handleSpecialCommands(message, selectedModel) {
+    const lowerMessage = message.toLowerCase();
+    
+    // Model switching
     const modelSwitchPattern = /(?:use|switch to|load)\s+(\w+)/i;
     const match = message.match(modelSwitchPattern);
     
@@ -269,7 +355,6 @@ async function sendMessage() {
         const requestedModel = match[1].toLowerCase();
         const availableModels = Array.from(modelSelect.options).map(opt => opt.value);
         
-        // Find closest match
         const modelMatch = availableModels.find(model => 
             model.toLowerCase().includes(requestedModel) || 
             requestedModel.includes(model.toLowerCase())
@@ -277,41 +362,191 @@ async function sendMessage() {
         
         if (modelMatch) {
             modelSelect.value = modelMatch;
-            addMessage(`Switched to ${modelMatch}`, 'system');
-            return;
+            currentModel = modelMatch;
+            addMessage(`✅ Switched to ${modelMatch}`, 'system');
+            await updateHomeStats(); // Update home stats when model changes
+            return true;
+        } else {
+            addMessage(`❌ Model "${requestedModel}" not found. Available models: ${availableModels.join(', ')}`, 'system');
+            return true;
         }
     }
     
-    try {
-        // Show typing indicator
-        const typingDiv = document.createElement('div');
-        typingDiv.classList.add('message', 'assistant', 'typing');
-        typingDiv.innerHTML = '<div class="message-content">🤔 Thinking...</div>';
-        chatMessages.appendChild(typingDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-        
-        // Send message to backend
-        const response = await ipcRenderer.invoke('chat-message', message, selectedModel);
-        
-        // Remove typing indicator
-        typingDiv.remove();
-        
-        if (response.success) {
-            addMessage(response.message, 'assistant');
-        } else {
-            addMessage('Error: ' + response.error, 'assistant');
+    // Clear conversation
+    if (lowerMessage.includes('/clear') || lowerMessage.includes('clear conversation')) {
+        try {
+            await ipcRenderer.invoke('clear-conversation', selectedModel);
+            addMessage(`🗑️ Conversation history cleared for ${selectedModel}`, 'system');
+            return true;
+        } catch (error) {
+            addMessage(`❌ Failed to clear conversation: ${error.message}`, 'system');
+            return true;
         }
-    } catch (error) {
-        // Remove typing indicator
-        const typingIndicator = document.querySelector('.typing');
-        if (typingIndicator) typingIndicator.remove();
-        
-        addMessage('Error: ' + error.message, 'assistant');
     }
+    
+    // Show conversation history
+    if (lowerMessage.includes('/history') || lowerMessage.includes('show history')) {
+        try {
+            const historyResponse = await ipcRenderer.invoke('get-conversation-history', selectedModel);
+            if (historyResponse.success && historyResponse.history.length > 0) {
+                addMessage(`📚 Conversation has ${historyResponse.history.length / 2} exchanges`, 'system');
+            } else {
+                addMessage('📭 No conversation history yet', 'system');
+            }
+            return true;
+        } catch (error) {
+            addMessage(`❌ Failed to get history: ${error.message}`, 'system');
+            return true;
+        }
+    }
+    
+    // Help command
+    if (lowerMessage.includes('/help') || lowerMessage === 'help') {
+        const helpMessage = `
+🤖 **Chat Commands:**
+• \`/clear\` - Clear conversation history
+• \`/history\` - Show conversation stats  
+• \`use [model]\` - Switch to a different model
+• \`/help\` - Show this help
+
+💡 **Tips for better responses:**
+• Be specific and clear in your questions
+• Provide context for complex topics
+• Use follow-up questions to dive deeper
+• Try different phrasings if you don't get the answer you want
+        `;
+        addMessage(helpMessage.trim(), 'system');
+        return true;
+    }
+    
+    return false;
 }
 
-// Add system message support
+// Enhanced message display with metadata
+function addEnhancedMessage(content, sender = 'user', metadata = {}) {
+    const messageDiv = document.createElement('div');
+    messageDiv.classList.add('message', sender);
+    
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const formattedContent = formatMessage(content);
+    
+    if (sender === 'assistant' && metadata) {
+        const responseTimeText = metadata.responseTime ? ` (${Math.round(metadata.responseTime / 1000)}s)` : '';
+        const tokenInfo = metadata.tokens ? ` • ${metadata.tokens} tokens` : '';
+        
+        messageDiv.innerHTML = `
+            <div class="message-header">
+                <span class="sender">Assistant</span>
+                <span class="model-badge">${metadata.model || 'AI'}</span>
+                <span class="timestamp">${timestamp}${responseTimeText}</span>
+            </div>
+            <div class="message-content">${formattedContent}</div>
+            <div class="message-metadata">
+                <span class="metadata-info">💬 High-quality response${tokenInfo}</span>
+                <button class="copy-btn" onclick="copyMessage(this)" title="Copy message">📋</button>
+            </div>
+        `;
+    } else {
+        messageDiv.innerHTML = `
+            <div class="message-header">
+                <span class="sender">${sender === 'user' ? 'You' : 'Assistant'}</span>
+                <span class="timestamp">${timestamp}</span>
+            </div>
+            <div class="message-content">${formattedContent}</div>
+        `;
+    }
+    
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Enhanced message formatting with better code highlighting
+function formatMessage(content) {
+    // Escape HTML first
+    const escapeHtml = (text) => {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    };
+    
+    let formatted = escapeHtml(content);
+    
+    // Enhanced code block formatting with language detection
+    formatted = formatted.replace(/```(\w+)?\n?([\s\S]*?)```/g, (match, lang, code) => {
+        const language = lang || 'text';
+        return `<div class="code-block">
+            <div class="code-header">
+                <span class="code-lang">${language}</span>
+                <button class="copy-code-btn" onclick="copyCode(this)" title="Copy code">📋</button>
+            </div>
+            <pre><code class="language-${language}">${code.trim()}</code></pre>
+        </div>`;
+    });
+    
+    // Inline code formatting
+    formatted = formatted.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+    
+    // Enhanced text formatting
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    formatted = formatted.replace(/__(.*?)__/g, '<u>$1</u>');
+    
+    // Convert line breaks while preserving code blocks
+    formatted = formatted.replace(/\n/g, '<br>');
+    
+    // Add emoji reactions for better UX
+    formatted = formatted.replace(/:\)/g, '😊');
+    formatted = formatted.replace(/:\(/g, '😔');
+    formatted = formatted.replace(/:D/g, '😄');
+    formatted = formatted.replace(/:\|/g, '😐');
+    
+    return formatted;
+}
+
+// Copy message functionality
+function copyMessage(button) {
+    const messageContent = button.closest('.message').querySelector('.message-content');
+    const text = messageContent.textContent || messageContent.innerText;
+    
+    navigator.clipboard.writeText(text).then(() => {
+        button.textContent = '✅';
+        setTimeout(() => {
+            button.textContent = '📋';
+        }, 2000);
+    }).catch(() => {
+        button.textContent = '❌';
+        setTimeout(() => {
+            button.textContent = '📋';
+        }, 2000);
+    });
+}
+
+// Copy code functionality
+function copyCode(button) {
+    const codeBlock = button.closest('.code-block').querySelector('code');
+    const text = codeBlock.textContent || codeBlock.innerText;
+    
+    navigator.clipboard.writeText(text).then(() => {
+        button.textContent = '✅';
+        setTimeout(() => {
+            button.textContent = '📋';
+        }, 2000);
+    }).catch(() => {
+        button.textContent = '❌';
+        setTimeout(() => {
+            button.textContent = '📋';
+        }, 2000);
+    });
+}
+
+// Add system message support (keeping existing function but enhanced)
 function addMessage(content, sender = 'user') {
+    if (sender === 'assistant') {
+        // Use enhanced message for assistant responses
+        addEnhancedMessage(content, sender);
+        return;
+    }
+    
     const messageDiv = document.createElement('div');
     messageDiv.classList.add('message', sender);
     
@@ -319,7 +554,7 @@ function addMessage(content, sender = 'user') {
         messageDiv.innerHTML = `
             <div class="message-content system-message">
                 <span class="system-icon">ℹ️</span>
-                ${content}
+                ${formatMessage(content)}
             </div>
         `;
     } else {
@@ -329,7 +564,7 @@ function addMessage(content, sender = 'user') {
                 <span class="sender">${sender === 'user' ? 'You' : 'Assistant'}</span>
                 <span class="timestamp">${timestamp}</span>
             </div>
-            <div class="message-content">${content}</div>
+            <div class="message-content">${formatMessage(content)}</div>
         `;
     }
     
@@ -926,7 +1161,7 @@ async function loadDownloadedModels() {
         const result = await require('electron').ipcRenderer.invoke('get-downloaded-models');
         
         if (result.success && result.models) {
-            // Update model selector
+            // Update model selector - EXTERNAL DRIVE MODELS ONLY
             const currentValue = modelSelect.value;
             modelSelect.innerHTML = '<option value="">Select a model...</option>';
             
@@ -937,13 +1172,34 @@ async function loadDownloadedModels() {
                 modelSelect.appendChild(option);
             });
             
+            if (result.models.length === 0) {
+                modelSelect.innerHTML = '<option value="">No models on external drive - download some first</option>';
+            }
+            
             // Restore previous selection if still available
             if (currentValue && Array.from(modelSelect.options).some(opt => opt.value === currentValue)) {
                 modelSelect.value = currentValue;
             }
+        } else {
+            // Handle external drive requirement
+            if (result.requiresExternalDrive) {
+                modelSelect.innerHTML = '<option value="">🚫 External drive required - Go to Settings</option>';
+                
+                // Show warning in home stats
+                const activeModelElement = document.getElementById('active-model');
+                if (activeModelElement) {
+                    activeModelElement.textContent = 'External Drive Required';
+                    activeModelElement.style.color = '#dc3545';
+                }
+                
+
+            } else {
+                modelSelect.innerHTML = '<option value="">Error loading models</option>';
+            }
         }
     } catch (error) {
         console.error('Failed to load downloaded models:', error);
+        modelSelect.innerHTML = '<option value="">Error loading models</option>';
     }
 }
 
@@ -1103,6 +1359,8 @@ async function initializeView(viewName) {
     }
 }
 
+
+
 // Update Home Page Statistics
 async function updateHomeStats() {
     try {
@@ -1122,6 +1380,10 @@ async function updateHomeStats() {
                 storageElement.textContent = 'External';
             } else {
                 storageElement.textContent = 'Local';
+            }
+        } else {
+            if (storageElement) {
+                storageElement.textContent = 'Not Set';
             }
         }
         
