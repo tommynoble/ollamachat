@@ -9,6 +9,7 @@
 3. **Document everything** - Keep detailed notes of all modifications in this file
 4. **Reference this file** - Read this file completely before starting any work
 5. **Update this file** - Add any new changes to the MODIFICATION LOG section
+6. **🚨 USE CSS VARIABLES ONLY** - All styling MUST use variables from `styles/core/variables.css`
 
 ## 📁 PROJECT OVERVIEW
 
@@ -43,21 +44,40 @@
 
 ## 🎨 CURRENT UI FEATURES
 
+### CSS Architecture:
+
+**🚨 CRITICAL STYLING RULE**: All new CSS MUST use our CSS variables from `styles/core/variables.css`
+
+- **Never use hardcoded values** for colors, spacing, typography, or effects
+- **Always reference variables**: `var(--color-primary)`, `var(--space-lg)`, etc.
+- **Maintains consistency** across the entire application
+- **Enables easy theming** and design system updates
+
 ### Implemented Styling:
 
 - **Glassmorphism design** with backdrop blur effects
-- **Gradient buttons** with purple theme (#6366f1 to #8b5cf6)
+- **Gradient buttons** with purple theme (using `var(--gradient-primary)`)
 - **Beautiful message bubbles** with hover animations
 - **Custom notifications** with slide-in animations
 - **Enhanced chat container** with glass effects
 - **Smooth scrollbars** with gradient styling
 - **Animated welcome screen** with bouncing icons
+- **First-time user experience modal** with glassmorphism styling
+
+### CSS Variables System:
+
+- **Colors**: `var(--color-primary)`, `var(--color-text-primary)`, etc.
+- **Spacing**: `var(--space-xs)` to `var(--space-4xl)` (4px to 48px)
+- **Typography**: `var(--font-size-sm)`, `var(--font-weight-bold)`, etc.
+- **Effects**: `var(--shadow-lg)`, `var(--border-radius-md)`, etc.
+- **Gradients**: `var(--gradient-primary)`, `var(--gradient-glass)`, etc.
+- **Transitions**: `var(--transition-normal)`, `var(--transition-fast)`, etc.
 
 ### Color Scheme:
 
-- Primary gradient: `linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)`
-- Hover gradient: `linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)`
-- Glass background: `rgba(255, 255, 255, 0.9)` with backdrop-blur
+- Primary gradient: `var(--gradient-primary)` (#6366f1 to #8b5cf6)
+- Hover gradient: `var(--gradient-header)` (#4f46e5 to #7c3aed)
+- Glass background: `var(--gradient-glass)` with `var(--glass-backdrop)`
 
 ## 🔧 TECHNICAL ARCHITECTURE
 
