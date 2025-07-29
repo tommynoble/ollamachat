@@ -310,20 +310,7 @@ body {
   box-shadow: 0 3px 12px rgba(79, 70, 229, 0.3);
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .quick-suggestions {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 10px;
-    margin-top: 16px;
-  }
-
-  .suggestion-btn {
-    padding: 12px 14px;
-    font-size: 13px;
-    border-radius: 20px;
-  }
-}
+/* Old responsive rules removed - now handled in comprehensive responsive system */
 
 /* Message Bubbles */
 .message {
@@ -721,33 +708,7 @@ body {
   font-size: 16px;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .header {
-    padding: 16px 20px;
-  }
-
-  .header-left h1 {
-    font-size: 20px;
-  }
-
-  .chat-container {
-    padding: 0 16px;
-  }
-
-  .input-container {
-    padding: 16px 20px;
-  }
-
-  .message-bubble {
-    max-width: 85%;
-  }
-
-  .quick-suggestions {
-    flex-direction: column;
-    align-items: center;
-  }
-}
+/* Old responsive rules removed - now handled in comprehensive responsive system */
 
 /* Settings Button */
 .settings-btn {
@@ -1944,30 +1905,7 @@ body {
   scale: 1.02;
 }
 
-/* Responsive Chat Enhancements */
-@media (max-width: 768px) {
-  .message-metadata {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .code-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-
-  .quick-suggestions {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .suggestion-btn {
-    width: 200px;
-    text-align: center;
-  }
-}
+/* Old responsive rules removed - now handled in comprehensive responsive system */
 
 /* Learning View Styles */
 .learning-header {
@@ -2564,4 +2502,335 @@ body {
 
 .learning-chat .typing-dot:nth-child(3) {
   animation-delay: 0.4s;
+}
+
+/* 🚀 First-Time User Experience Styles */
+.first-time-notification {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--gradient-glass);
+  border: var(--glass-border);
+  border-radius: var(--border-radius-lg);
+  backdrop-filter: var(--glass-backdrop);
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-3xl);
+  max-width: 500px;
+  width: 90%;
+  z-index: 1000;
+  animation: slideInFromTop 0.5s ease-out;
+}
+
+.first-time-notification .notification-content h3 {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--space-lg);
+  text-align: center;
+}
+
+.first-time-notification .notification-content p {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  line-height: 1.6;
+  margin-bottom: var(--space-2xl);
+  text-align: center;
+}
+
+.first-time-actions {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.first-time-actions .btn-primary,
+.first-time-actions .btn-secondary {
+  padding: var(--space-md) var(--space-xl);
+  border: none;
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-normal);
+  text-decoration: none;
+  display: inline-block;
+}
+
+.first-time-actions .btn-primary {
+  background: var(--gradient-primary);
+  color: white;
+}
+
+.first-time-actions .btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.first-time-actions .btn-secondary {
+  background: var(--color-bg-white);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-light);
+}
+
+.first-time-actions .btn-secondary:hover {
+  background: var(--color-bg-secondary);
+  transform: translateY(-2px);
+}
+
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -60%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* =============================================================================
+   RESPONSIVE DESIGN SYSTEM 
+   ============================================================================= */
+
+/* 🔧 Remove old scattered responsive rules and replace with organized system */
+
+/* Small Mobile Phones */
+@media (max-width: 480px) {
+  .app-container {
+    min-height: 100vh;
+    min-height: 100dvh; /* Dynamic viewport height for mobile */
+  }
+
+  .header {
+    padding: 12px 16px;
+    border-radius: 0;
+  }
+
+  .header-left h1 {
+    font-size: 18px;
+  }
+
+  .status-indicator {
+    font-size: 12px;
+    gap: 6px;
+  }
+
+  .chat-container {
+    margin: 0;
+    padding: 0 12px;
+    border-radius: 0;
+    flex: 1;
+    min-height: 0; /* Allow flexible height */
+  }
+
+  .chat-messages {
+    padding: 16px 12px;
+    border-radius: 0;
+    /* Improve touch scrolling */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  .message-bubble {
+    max-width: 90%;
+    padding: 12px 16px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .message-bubble.user {
+    max-width: 85%;
+  }
+
+  /* Optimize shortcuts for touch */
+  .quick-suggestions {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 0 4px;
+    margin-top: 12px;
+  }
+
+  .suggestion-btn {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 14px;
+    border-radius: 12px;
+    min-width: unset;
+    /* Improve touch interaction */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Fix input container for mobile */
+  .input-container {
+    padding: 12px 16px;
+    border-radius: 0;
+  }
+
+  .chat-input {
+    min-height: 44px; /* iOS minimum touch target */
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+
+  .send-btn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+
+  /* Message components responsive */
+  .message-metadata {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .code-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
+
+/* Tablets and larger phones */
+@media (max-width: 768px) and (min-width: 481px) {
+  .header {
+    padding: 16px 20px;
+  }
+
+  .header-left h1 {
+    font-size: 20px;
+  }
+
+  .chat-container {
+    padding: 0 16px;
+    margin: 0 8px;
+  }
+
+  .chat-messages {
+    padding: 20px 16px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  .message-bubble {
+    max-width: 85%;
+  }
+
+  .quick-suggestions {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .suggestion-btn {
+    padding: 12px 14px;
+    font-size: 13px;
+    border-radius: 20px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .input-container {
+    padding: 16px 20px;
+  }
+
+  .chat-input {
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+
+  /* Message components responsive */
+  .message-metadata {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .code-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
+
+/* Landscape phones and small tablets */
+@media (max-width: 1024px) and (orientation: landscape) {
+  .chat-container {
+    padding: 0 20px;
+  }
+
+  .chat-messages {
+    padding: 16px 20px;
+  }
+
+  .quick-suggestions {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
+  }
+
+  .suggestion-btn {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+}
+
+/* Ensure touch interactions work properly on all devices */
+@media (hover: none) and (pointer: coarse) {
+  .suggestion-btn:hover {
+    transform: none;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
+    background: linear-gradient(135deg, var(--color-primary-600) 0%, var(--color-secondary-600) 100%);
+    scale: 1;
+  }
+
+  .suggestion-btn:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+
+  /* Improve message interaction on touch devices */
+  .message-bubble {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .status-dot {
+    border: 0.5px solid rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .message {
+    animation: none;
+  }
+
+  .suggestion-btn {
+    transition: none;
+  }
+
+  .suggestion-btn:hover {
+    transform: none;
+    scale: 1;
+  }
+
+  .status-dot {
+    animation: none;
+  }
+}
+
+/* Dark mode support preparation */
+@media (prefers-color-scheme: dark) {
+  .chat-messages::-webkit-scrollbar-track {
+    background: rgba(30, 41, 59, 0.5);
+  }
+
+  .chat-messages::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #475569 0%, #64748b 100%);
+  }
 }
