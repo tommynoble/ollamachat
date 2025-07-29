@@ -728,20 +728,7 @@ function addEnhancedMessage(content, sender = 'user', metadata = {}) {
 
         <!-- Footer with Metadata -->
         <div class="message-footer-modern">
-          <div class="quality-indicator">
-            <span class="quality-badge high-quality">💬 High-quality response</span>
-            ${tokenInfo ? `<span class="token-count">• ${tokenInfo}</span>` : ''}
-          </div>
-          <div class="response-stats">
-            <span class="stats-item">
-              <span class="stats-icon">⚡</span>
-              <span class="stats-text">Fast</span>
-            </span>
-            <span class="stats-item">
-              <span class="stats-icon">🎯</span>
-              <span class="stats-text">Accurate</span>
-            </span>
-          </div>
+          ${tokenInfo ? `<span class="token-count-simple">${tokenInfo}</span>` : ''}
         </div>
       </div>
     `;
