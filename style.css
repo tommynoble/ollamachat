@@ -2920,6 +2920,7 @@ body {
 .avatar-icon {
   font-size: var(--text-lg);
   line-height: 1;
+  color: #ffffff;
 }
 
 /* Header Info */
@@ -2931,13 +2932,13 @@ body {
 .model-name, .user-name {
   font-weight: var(--font-weight-semibold);
   font-size: var(--text-base);
-  color: var(--color-text-primary);
+  color: #000000;
   margin-bottom: 2px;
 }
 
 .timestamp-info {
   font-size: var(--text-sm);
-  color: var(--color-text-secondary);
+  color: #333333;
   font-weight: var(--font-weight-medium);
 }
 
@@ -2988,7 +2989,7 @@ body {
 /* Message Content Modern */
 .message-content-modern {
   padding: var(--space-lg);
-  color: var(--color-text-primary);
+  color: #000000;
   font-size: var(--text-base);
   line-height: var(--line-height-relaxed);
   word-wrap: break-word;
