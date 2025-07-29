@@ -183,9 +183,7 @@ async function loadModels(retryCount = 0) {
         showOllamaNotRunningState();
       } else {
         modelSelect.innerHTML = '<option value="">No models available</option>';
-        if (result.error) {
-          showNotification(`No models found: ${result.error}`, 'warning');
-        }
+        showFirstTimeUserExperience();
       }
     }
   } catch (error) {
@@ -684,7 +682,7 @@ async function handleSpecialCommands(message, selectedModel) {
   return false;
 }
 
-// Enhanced message display with metadata
+// 🎨 Modern Chat Template System - Beautiful Response Cards
 function addEnhancedMessage(content, sender = 'user', metadata = {}) {
   const messageDiv = document.createElement('div');
   messageDiv.classList.add('message', sender);
@@ -699,32 +697,113 @@ function addEnhancedMessage(content, sender = 'user', metadata = {}) {
     const responseTimeText = metadata.responseTime
       ? ` (${Math.round(metadata.responseTime / 1000)}s)`
       : '';
-    const tokenInfo = metadata.tokens ? ` • ${metadata.tokens} tokens` : '';
+    const tokenInfo = metadata.tokens ? `${metadata.tokens} tokens` : '';
+    const modelName = metadata.model || 'AI';
 
     messageDiv.innerHTML = `
-            <div class="message-header">
-                <span class="sender">Assistant</span>
-                <span class="model-badge">${metadata.model || 'AI'}</span>
-                <span class="timestamp">${timestamp}${responseTimeText}</span>
-            </div>
-            <div class="message-content">${formattedContent}</div>
-            <div class="message-metadata">
-                <span class="metadata-info">💬 High-quality response${tokenInfo}</span>
-                <button class="copy-btn" onclick="copyMessage(this)" title="Copy message">📋</button>
-            </div>
-        `;
-  } else {
+      <div class="message-bubble assistant-bubble">
+        <!-- Model Header with Avatar -->
+        <div class="message-header-modern">
+          <div class="model-avatar">
+            <div class="avatar-icon">🤖</div>
+          </div>
+          <div class="header-info">
+            <div class="model-name">${modelName}</div>
+            <div class="timestamp-info">${timestamp}${responseTimeText}</div>
+          </div>
+          <div class="message-actions">
+            <button class="action-btn copy-btn" onclick="copyMessage(this)" title="Copy message">
+              <span class="btn-icon">📋</span>
+            </button>
+            <button class="action-btn like-btn" onclick="likeMessage(this)" title="Good response">
+              <span class="btn-icon">👍</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="message-content-modern">
+          ${formattedContent}
+        </div>
+
+        <!-- Footer with Metadata -->
+        <div class="message-footer-modern">
+          <div class="quality-indicator">
+            <span class="quality-badge high-quality">💬 High-quality response</span>
+            ${tokenInfo ? `<span class="token-count">• ${tokenInfo}</span>` : ''}
+          </div>
+          <div class="response-stats">
+            <span class="stats-item">
+              <span class="stats-icon">⚡</span>
+              <span class="stats-text">Fast</span>
+            </span>
+            <span class="stats-item">
+              <span class="stats-icon">🎯</span>
+              <span class="stats-text">Accurate</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (sender === 'user') {
     messageDiv.innerHTML = `
-            <div class="message-header">
-                <span class="sender">${sender === 'user' ? 'You' : 'Assistant'}</span>
-                <span class="timestamp">${timestamp}</span>
-            </div>
-            <div class="message-content">${formattedContent}</div>
-        `;
+      <div class="message-bubble user-bubble">
+        <div class="message-header-modern user-header">
+          <div class="user-avatar">
+            <div class="avatar-icon">👤</div>
+          </div>
+          <div class="header-info">
+            <div class="user-name">You</div>
+            <div class="timestamp-info">${timestamp}</div>
+          </div>
+        </div>
+        <div class="message-content-modern user-content">
+          ${formattedContent}
+        </div>
+      </div>
+    `;
+  } else {
+    // Fallback for other message types
+    messageDiv.innerHTML = `
+      <div class="message-bubble system-bubble">
+        <div class="message-content-modern system-content">
+          ${formattedContent}
+        </div>
+      </div>
+    `;
   }
 
   chatMessages.appendChild(messageDiv);
   chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// 🎭 Message Actions
+function copyMessage(button) {
+  const messageContent = button.closest('.message-bubble').querySelector('.message-content-modern').innerText;
+  navigator.clipboard.writeText(messageContent).then(() => {
+    // Visual feedback
+    const originalIcon = button.querySelector('.btn-icon');
+    originalIcon.textContent = '✅';
+    setTimeout(() => {
+      originalIcon.textContent = '📋';
+    }, 1500);
+    
+    showNotification('Message copied to clipboard!', 'success');
+  }).catch(() => {
+    showNotification('Failed to copy message', 'error');
+  });
+}
+
+function likeMessage(button) {
+  const icon = button.querySelector('.btn-icon');
+  if (icon.textContent === '👍') {
+    icon.textContent = '👍✨';
+    button.classList.add('liked');
+    showNotification('Thanks for the feedback!', 'success');
+  } else {
+    icon.textContent = '👍';
+    button.classList.remove('liked');
+  }
 }
 
 // Enhanced message formatting with better code highlighting
@@ -774,29 +853,6 @@ function formatMessage(content) {
   formatted = formatted.replace(/:\|/g, '😐');
 
   return formatted;
-}
-
-// Copy message functionality
-function copyMessage(button) {
-  const messageContent = button
-    .closest('.message')
-    .querySelector('.message-content');
-  const text = messageContent.textContent || messageContent.innerText;
-
-  navigator.clipboard
-    .writeText(text)
-    .then(() => {
-      button.textContent = '✅';
-      setTimeout(() => {
-        button.textContent = '📋';
-      }, 2000);
-    })
-    .catch(() => {
-      button.textContent = '❌';
-      setTimeout(() => {
-        button.textContent = '📋';
-      }, 2000);
-    });
 }
 
 // Copy code functionality
@@ -2084,5 +2140,76 @@ function setModelDropdown(modelName) {
   if (modelSelect && modelName) {
     modelSelect.value = modelName;
     console.log('✅ Set dropdown to:', modelName);
+  }
+}
+
+// 🚀 First-Time User Experience
+function showFirstTimeUserExperience() {
+  // Show helpful notification with action buttons
+  const notification = document.createElement('div');
+  notification.className = 'first-time-notification';
+  notification.innerHTML = `
+    <div class="notification-content">
+      <h3>🤖 Welcome to Ollama Chat!</h3>
+      <p>You need to download a model to start chatting. We recommend <strong>phi3:mini</strong> (2.2GB) - it's fast, capable, and perfect for general use.</p>
+      <div class="first-time-actions">
+        <button class="btn-primary" onclick="downloadRecommendedModel()">
+          📥 Download phi3:mini (Recommended)
+        </button>
+        <button class="btn-secondary" onclick="showView('models')">
+          📋 Browse All Models
+        </button>
+      </div>
+    </div>
+  `;
+  
+  // Add to the main container
+  const mainContainer = document.querySelector('.main-container') || document.body;
+  mainContainer.appendChild(notification);
+  
+  // Auto-remove after 15 seconds unless user interacts
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.remove();
+    }
+  }, 15000);
+}
+
+// 🎯 Download Recommended Model (phi3:mini)
+async function downloadRecommendedModel() {
+  const modelName = 'phi3:mini';
+  
+  // Remove first-time notification
+  const notification = document.querySelector('.first-time-notification');
+  if (notification) {
+    notification.remove();
+  }
+  
+  // Show downloading status
+  showNotification(`📥 Downloading ${modelName}... This may take a few minutes.`, 'info');
+  
+  try {
+    // Switch to models view to show progress
+    showView('models');
+    
+    // Start download
+    const result = await ipcRenderer.invoke('download-model', modelName);
+    
+    if (result.success) {
+      showNotification(`✅ ${modelName} downloaded successfully! You can now start chatting.`, 'success');
+      
+      // Refresh model list
+      await loadDownloadedModels();
+      
+      // Switch back to chat view
+      setTimeout(() => {
+        showView('chat');
+      }, 2000);
+    } else {
+      showNotification(`❌ Failed to download ${modelName}: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    console.error('Download failed:', error);
+    showNotification(`❌ Download failed: ${error.message}`, 'error');
   }
 }
