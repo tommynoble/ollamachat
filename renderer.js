@@ -77,8 +77,10 @@ async function checkExistingExternalDriveConfig() {
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', async () => {
-    checkOllamaStatus();
     setupEventListeners();
+    
+    // Check Ollama status first
+    const isRunning = await checkOllamaStatus();
     
     // Check for existing external drive configuration
     await checkExistingExternalDriveConfig();
@@ -86,8 +88,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Check downloaded models on startup
     await checkDownloadedModels();
     
+    // Load models for chat functionality
+    await loadModels();
+    
     // Initialize home view by default
     await updateHomeStats();
+    
+    // Show initial status notification
+    if (!isRunning) {
+        showNotification('Ollama is not running. Click the model dropdown for options to start it.', 'warning');
+    } else {
+        // If running, we'll let the status checker determine if models are ready
+        setTimeout(() => {
+            // Give a moment for status to update, then show appropriate message
+            const statusText = document.querySelector('.status-indicator span:last-child');
+            if (statusText && statusText.textContent.includes('Ready for Chat')) {
+                showNotification('✅ Ready to chat! Models are loaded and available.', 'info');
+            }
+        }, 3000);
+    }
     
     // Set up auto-refresh for home stats
     setInterval(updateHomeStats, 30000); // Update every 30 seconds
@@ -117,8 +136,34 @@ async function checkOllamaStatus() {
     }
 }
 
-// Load available models
-async function loadModels() {
+// Show notification to user
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <span class="notification-icon">${type === 'warning' ? '⚠️' : type === 'error' ? '❌' : 'ℹ️'}</span>
+            <span class="notification-message">${message}</span>
+            <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+    `;
+    
+    // Add to page
+    document.body.appendChild(notification);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Load available models with retry logic
+async function loadModels(retryCount = 0) {
+    const maxRetries = 3;
+    
     try {
         const result = await ipcRenderer.invoke('get-models');
         
@@ -134,61 +179,222 @@ async function loadModels() {
             // Select first model by default
             currentModel = result.models[0];
             modelSelect.value = currentModel;
+            
+            // Show success notification if this was a retry
+            if (retryCount > 0) {
+                showNotification('✅ Models loaded successfully!', 'info');
+            }
         } else {
-            modelSelect.innerHTML = '<option value="">No models available</option>';
+            // Check if it's a connection error (Ollama not running)
+            if (result.error && (result.error.includes('Connection') || result.error.includes('refused'))) {
+                showOllamaNotRunningState();
+            } else {
+                modelSelect.innerHTML = '<option value="">No models available</option>';
+                if (result.error) {
+                    showNotification(`No models found: ${result.error}`, 'warning');
+                }
+            }
         }
     } catch (error) {
         console.error('Failed to load models:', error);
-        modelSelect.innerHTML = '<option value="">Error loading models</option>';
+        
+        // Show specific error message based on the type of error
+        let errorMessage = 'Error loading models';
+        if (error.message && (error.message.includes('refused') || error.message.includes('Connection'))) {
+            showOllamaNotRunningState();
+            return;
+        } else if (error.message && error.message.includes('timeout')) {
+            errorMessage = '⏱️ Request timeout - Ollama may be starting up';
+            
+            // Retry after timeout
+            if (retryCount < maxRetries) {
+                showNotification(`Retrying... (${retryCount + 1}/${maxRetries})`, 'info');
+                setTimeout(() => loadModels(retryCount + 1), 2000);
+                return;
+            }
+        }
+        
+        modelSelect.innerHTML = `<option value="">${errorMessage}</option>`;
+        showNotification('Failed to load models. Please check if Ollama is running.', 'error');
     }
 }
 
+// Show UI state when Ollama is not running
+function showOllamaNotRunningState() {
+    modelSelect.innerHTML = `
+        <option value="">🚫 Ollama not running</option>
+        <option value="start-ollama">🚀 Click to start Ollama</option>
+    `;
+    
+    showNotification('Ollama is not running. Please start it with: ollama serve', 'warning');
+    
+    // Add event listener for the "start ollama" option
+    modelSelect.onchange = function() {
+        if (this.value === 'start-ollama') {
+            startOllama();
+            this.value = ''; // Reset selection
+        }
+    };
+}
+
+// Attempt to start Ollama
+async function startOllama() {
+    showNotification('🚀 Starting Ollama server...', 'info');
+    
+    try {
+        const result = await ipcRenderer.invoke('start-ollama');
+        if (result.success) {
+            showNotification('✅ Ollama started successfully!', 'info');
+            // Wait a moment then retry loading models
+            setTimeout(() => loadModels(), 2000);
+        } else {
+            showNotification('❌ Failed to start Ollama. Please start it manually: ollama serve', 'error');
+        }
+    } catch (error) {
+        showNotification('❌ Error starting Ollama. Please start it manually: ollama serve', 'error');
+    }
+}
+
+// Track confirmed ready state to prevent unnecessary checks
+let isConfirmedReady = false;
+
+// Enhanced Ollama status checker with model readiness detection
+async function checkOllamaStatus() {
+    try {
+        // Check basic server status
+        const statusResult = await ipcRenderer.invoke('check-ollama-status');
+        
+        if (!statusResult.running) {
+            isConfirmedReady = false;
+            updateOllamaStatusIndicator('offline');
+            return false;
+        }
+        
+        // If already confirmed ready, skip model check
+        if (isConfirmedReady) {
+            return true;
+        }
+        
+        // If server is running, check if models are ready for chat
+        try {
+            const modelResult = await ipcRenderer.invoke('check-model-readiness');
+            
+            if (modelResult.ready) {
+                isConfirmedReady = true;
+                updateOllamaStatusIndicator('ready');
+                return true;
+            } else if (modelResult.loading) {
+                updateOllamaStatusIndicator('loading');
+                return false;
+            } else {
+                updateOllamaStatusIndicator('running');
+                return false;
+            }
+        } catch (modelError) {
+            // If we can't check model readiness, assume server is just running
+            updateOllamaStatusIndicator('running');
+            return false;
+        }
+        
+    } catch (error) {
+        isConfirmedReady = false;
+        updateOllamaStatusIndicator('offline');
+        return false;
+    }
+}
+
+// Update Ollama status indicator in UI with enhanced states
+function updateOllamaStatusIndicator(status) {
+    const statusDot = document.querySelector('.status-dot');
+    const statusText = document.querySelector('.status-indicator span:last-child');
+    
+    if (statusDot && statusText) {
+        // Handle legacy boolean parameter for backward compatibility
+        if (typeof status === 'boolean') {
+            status = status ? 'running' : 'offline';
+        }
+        
+        switch (status) {
+            case 'ready':
+                statusDot.className = 'status-dot ready';
+                statusText.textContent = 'Online';
+                break;
+            case 'loading':
+                statusDot.className = 'status-dot loading';
+                statusText.textContent = 'Loading Model...';
+                break;
+            case 'starting':
+                statusDot.className = 'status-dot starting';
+                statusText.textContent = 'Ollama Starting...';
+                break;
+            case 'running':
+                statusDot.className = 'status-dot online';
+                statusText.textContent = 'Ollama Running';
+                break;
+            case 'offline':
+            default:
+                statusDot.className = 'status-dot offline';
+                statusText.textContent = 'Ollama Offline';
+                break;
+        }
+    }
+}
+
+// Periodically check Ollama status
+setInterval(checkOllamaStatus, 10000); // Check every 10 seconds
+
 // Setup event listeners
 function setupEventListeners() {
-    // Setup navigation
+    // Navigation setup
     setupNavigation();
     
     // Chat functionality
     if (sendButton) {
-        sendButton.addEventListener('click', sendMessage);
+    sendButton.addEventListener('click', sendMessage);
     }
     
     if (messageInput) {
-        // Enter key in textarea (but allow Shift+Enter for new line)
-        messageInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-        
-        // Auto-resize textarea
-        messageInput.addEventListener('input', autoResizeTextarea);
-        
-        // Enable/disable send button based on input
-        messageInput.addEventListener('input', updateSendButton);
+    // Enter key in textarea (but allow Shift+Enter for new line)
+    messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    
+    // Auto-resize textarea
+    messageInput.addEventListener('input', autoResizeTextarea);
+    
+    // Enable/disable send button based on input
+    messageInput.addEventListener('input', updateSendButton);
     }
     
     // Model selection change
     if (modelSelect) {
-        modelSelect.addEventListener('change', (e) => {
-            currentModel = e.target.value;
-            updateHomeStats(); // Update home page when model changes
-        });
+    modelSelect.addEventListener('change', (e) => {
+        currentModel = e.target.value;
+        
+        // Save the last used model
+        if (currentModel) {
+            saveLastUsedModel(currentModel);
+        }
+        
+        updateHomeStats(); // Update home page when model changes
+    });
     }
     
     // Refresh models button
     if (refreshModelsBtn) {
-        refreshModelsBtn.addEventListener('click', async () => {
-            refreshModelsBtn.style.transform = 'rotate(180deg)';
+    refreshModelsBtn.addEventListener('click', async () => {
+        refreshModelsBtn.style.transform = 'rotate(180deg)';
             await loadDownloadedModels();
-            await checkOllamaStatus();
+        await checkOllamaStatus();
             await updateHomeStats(); // Update home stats
             
-            setTimeout(() => {
-                refreshModelsBtn.style.transform = 'rotate(0deg)';
-            }, 300);
-        });
+        setTimeout(() => {
+            refreshModelsBtn.style.transform = 'rotate(0deg)';
+        }, 300);
+    });
     }
     
     // Quick suggestion buttons
@@ -196,16 +402,16 @@ function setupEventListeners() {
         if (e.target.classList.contains('suggestion-btn')) {
             const message = e.target.getAttribute('data-message');
             if (messageInput) {
-                messageInput.value = message;
-                updateSendButton();
-                messageInput.focus();
+            messageInput.value = message;
+            updateSendButton();
+            messageInput.focus();
             }
         }
     });
 
     // Settings functionality
     if (refreshDrivesBtn) {
-        refreshDrivesBtn.addEventListener('click', refreshDrives);
+    refreshDrivesBtn.addEventListener('click', refreshDrives);
     }
     
     // Open models folder button
@@ -429,7 +635,7 @@ function addEnhancedMessage(content, sender = 'user', metadata = {}) {
     
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const formattedContent = formatMessage(content);
-    
+        
     if (sender === 'assistant' && metadata) {
         const responseTimeText = metadata.responseTime ? ` (${Math.round(metadata.responseTime / 1000)}s)` : '';
         const tokenInfo = metadata.tokens ? ` • ${metadata.tokens} tokens` : '';
@@ -446,7 +652,7 @@ function addEnhancedMessage(content, sender = 'user', metadata = {}) {
                 <button class="copy-btn" onclick="copyMessage(this)" title="Copy message">📋</button>
             </div>
         `;
-    } else {
+        } else {
         messageDiv.innerHTML = `
             <div class="message-header">
                 <span class="sender">${sender === 'user' ? 'You' : 'Assistant'}</span>
@@ -757,8 +963,8 @@ Do you want to continue?`;
     try {
         const result = await ipcRenderer.invoke('use-for-models', driveName, drivePath);
         
-        if (result.success) {
-            // Show success message with restart instruction
+            if (result.success) {
+                // Show success message with restart instruction
             alert(`✅ Success! External drive "${driveName}" is now permanently configured for all model downloads.
 
 📁 All future models will automatically download to:
@@ -767,36 +973,36 @@ ${result.modelsPath}
 🎯 Setup complete! No manual configuration needed.
 All downloads will now go to your external drive automatically.`);
 
-            // Store which drive is active
-            activeDrive = driveName;
-            
-            // Update button state
-            button.textContent = 'Currently Used ✓';
-            button.classList.add('active');
-            button.disabled = true;
+                // Store which drive is active
+                activeDrive = driveName;
+                
+                // Update button state
+                button.textContent = 'Currently Used ✓';
+                button.classList.add('active');
+                button.disabled = true;
 
             // Update storage location display
             await updateStorageLocationDisplay();
 
-            // Don't refresh drives list to avoid overwriting our button state
-        } else {
-            // Show error message
-            alert(`❌ Failed to setup external drive: ${result.error}`);
+                // Don't refresh drives list to avoid overwriting our button state
+            } else {
+                // Show error message
+                alert(`❌ Failed to setup external drive: ${result.error}`);
+                
+                // Restore button state
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+    } catch (error) {
+            alert(`❌ Error: ${error.message || error}`);
             
             // Restore button state
             button.textContent = originalText;
             button.disabled = false;
-        }
-    } catch (error) {
-        alert(`❌ Error: ${error.message || error}`);
-        
-        // Restore button state
-        button.textContent = originalText;
-        button.disabled = false;
     }
 }
 
-// Model Browser Functions  
+// Model Browser Functions
 async function loadAvailableModels() {
     // First, check which models are already downloaded
     await checkDownloadedModels();
@@ -905,7 +1111,7 @@ function createModelCard(model, variant) {
         <div class="model-actions">
             <button class="${buttonClass}" onclick="${buttonAction}" ${buttonDisabled}>
                 ${buttonText}
-            </button>
+        </button>
             <button class="open-location-btn" onclick="openModelsLocation()" title="Open models location">
                 📁
             </button>
@@ -1146,9 +1352,9 @@ function updateDownloadProgress(data) {
         setTimeout(() => {
             if (progressContainer) {
                 progressContainer.style.display = 'none';
-            }
+                }
         }, 3000);
-    }
+        }
     
     progressText.textContent = displayText;
     
@@ -1161,8 +1367,10 @@ async function loadDownloadedModels() {
         const result = await require('electron').ipcRenderer.invoke('get-downloaded-models');
         
         if (result.success && result.models) {
+            // Get the last used model before clearing dropdown
+            const lastUsedModel = getLastUsedModel();
+            
             // Update model selector - EXTERNAL DRIVE MODELS ONLY
-            const currentValue = modelSelect.value;
             modelSelect.innerHTML = '<option value="">Select a model...</option>';
             
             result.models.forEach(model => {
@@ -1174,11 +1382,20 @@ async function loadDownloadedModels() {
             
             if (result.models.length === 0) {
                 modelSelect.innerHTML = '<option value="">No models on external drive - download some first</option>';
-            }
-            
-            // Restore previous selection if still available
-            if (currentValue && Array.from(modelSelect.options).some(opt => opt.value === currentValue)) {
-                modelSelect.value = currentValue;
+            } else {
+                // Try to restore the last used model
+                if (lastUsedModel && Array.from(modelSelect.options).some(opt => opt.value === lastUsedModel)) {
+                    setModelDropdown(lastUsedModel);
+                    currentModel = lastUsedModel;
+                    console.log('✅ Restored last used model:', lastUsedModel);
+                } else if (result.models.length > 0) {
+                    // Fallback to first available model
+                    const firstModel = result.models[0].name;
+                    setModelDropdown(firstModel);
+                    currentModel = firstModel;
+                    saveLastUsedModel(firstModel); // Save as new default
+                    console.log('✅ Set default model:', firstModel);
+                }
             }
         } else {
             // Handle external drive requirement
@@ -1191,8 +1408,6 @@ async function loadDownloadedModels() {
                     activeModelElement.textContent = 'External Drive Required';
                     activeModelElement.style.color = '#dc3545';
                 }
-                
-
             } else {
                 modelSelect.innerHTML = '<option value="">Error loading models</option>';
             }
@@ -1271,7 +1486,7 @@ async function deleteModel(modelName) {
 }
 
 // Periodic status check
-setInterval(checkOllamaStatus, 30000); // Check every 30 seconds 
+setInterval(checkOllamaStatus, 30000); // Check every 30 seconds
 
 // Update storage location display
 async function updateStorageLocationDisplay() {
@@ -1302,25 +1517,31 @@ async function updateStorageLocationDisplay() {
     }
 } 
 
-// Navigation and View Management
+// Enhanced Navigation System
 function setupNavigation() {
+    // Navigation buttons
     const navButtons = document.querySelectorAll('.nav-btn');
-    
     navButtons.forEach(btn => {
         btn.addEventListener('click', () => {
-            const targetView = btn.getAttribute('data-view');
-            switchToView(targetView);
-            
-            // Update active nav button
-            navButtons.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+            const viewName = btn.dataset.view;
+            switchToView(viewName);
+        });
+    });
+    
+    // Feature cards navigation
+    const featureCards = document.querySelectorAll('.feature-card[data-view]');
+    featureCards.forEach(card => {
+        card.addEventListener('click', () => {
+            const viewName = card.dataset.view;
+            switchToView(viewName);
         });
     });
 }
 
 function switchToView(viewName) {
     // Hide all views
-    document.querySelectorAll('.view').forEach(view => {
+    const views = document.querySelectorAll('.view');
+    views.forEach(view => {
         view.classList.remove('active');
     });
     
@@ -1328,38 +1549,223 @@ function switchToView(viewName) {
     const targetView = document.getElementById(`${viewName}-view`);
     if (targetView) {
         targetView.classList.add('active');
-        
-        // Initialize view-specific functionality
-        initializeView(viewName);
     }
+    
+    // Update navigation buttons
+    const navButtons = document.querySelectorAll('.nav-btn');
+    navButtons.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.view === viewName) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Initialize view-specific functionality
+    initializeView(viewName);
 }
 
-async function initializeView(viewName) {
+function initializeView(viewName) {
     switch(viewName) {
         case 'home':
-            await updateHomeStats();
+            updateHomeStats();
             break;
         case 'chat':
-            await loadDownloadedModels();
+            // Initialize chat functionality
+            break;
+        case 'learning':
+            initializeLearning();
             break;
         case 'models':
-            await updateStorageLocationDisplay();
-            await loadAvailableModels();
-            break;
-        case 'settings':
-            await checkExistingExternalDriveConfig();
-            refreshDrives();
+            loadDownloadedModels();
+            checkExistingExternalDriveConfig();
             break;
         case 'analyzer':
-            await populateModelSelects();
+            populateModelSelects();
             break;
         case 'coder':
-            await populateModelSelects();
+            populateModelSelects();
+            break;
+        case 'settings':
+            refreshDrives();
             break;
     }
 }
 
+// Learning functionality
+function initializeLearning() {
+    setupLearningEventListeners();
+}
 
+function setupLearningEventListeners() {
+    // Course button clicks
+    const courseButtons = document.querySelectorAll('.course-btn');
+    courseButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const courseId = btn.dataset.course;
+            startLearningSession(courseId, btn.textContent);
+        });
+    });
+    
+    // Learning session controls
+    const endLearningBtn = document.getElementById('end-learning');
+    if (endLearningBtn) {
+        endLearningBtn.addEventListener('click', endLearningSession);
+    }
+    
+    const pauseLearningBtn = document.getElementById('pause-learning');
+    if (pauseLearningBtn) {
+        pauseLearningBtn.addEventListener('click', pauseLearningSession);
+    }
+    
+    // Learning input
+    const learningInput = document.getElementById('learning-input');
+    const sendLearningBtn = document.getElementById('send-learning-message');
+    
+    if (learningInput && sendLearningBtn) {
+        sendLearningBtn.addEventListener('click', sendLearningMessage);
+        learningInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendLearningMessage();
+            }
+        });
+    }
+}
+
+function startLearningSession(courseId, courseName) {
+    // Hide course selection and show learning session
+    document.querySelector('.course-categories').style.display = 'none';
+    const learningSession = document.getElementById('learning-session');
+    learningSession.style.display = 'block';
+    
+    // Update session title
+    document.getElementById('current-course-title').textContent = courseName;
+    
+    // Clear previous chat
+    const learningChat = document.getElementById('learning-chat');
+    learningChat.innerHTML = '';
+    
+    // Start the course with AI tutor
+    setTimeout(() => {
+        addLearningMessage(getLearningWelcomeMessage(courseId), 'tutor');
+    }, 500);
+}
+
+function endLearningSession() {
+    // Show course selection and hide learning session
+    document.querySelector('.course-categories').style.display = 'grid';
+    document.getElementById('learning-session').style.display = 'none';
+}
+
+function pauseLearningSession() {
+    // Add pause functionality here
+    addLearningMessage("Session paused. Click any course to resume or start a new topic!", 'system');
+}
+
+function sendLearningMessage() {
+    const input = document.getElementById('learning-input');
+    const message = input.value.trim();
+    
+    if (!message) return;
+    
+    // Add user message
+    addLearningMessage(message, 'user');
+    input.value = '';
+    
+    // Simulate AI tutor response (integrate with your chat system later)
+    setTimeout(() => {
+        const response = generateTutorResponse(message);
+        addLearningMessage(response, 'tutor');
+    }, 1000);
+}
+
+// Enhanced Learning Message Function
+function addLearningMessage(content, sender, metadata = {}) {
+    const learningChat = document.getElementById('learning-chat');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${sender}`;
+    
+    if (sender === 'assistant') {
+        // Use enhanced formatting for AI responses
+        messageDiv.innerHTML = `
+            <div class="message-content">
+                <div class="message-header">
+                    <span class="model-badge">phi3:mini</span>
+                    <div class="message-metadata">
+                        <span>✨ Learning mode</span>
+                        ${metadata.responseTime ? `<span>⏱️ ${metadata.responseTime}</span>` : ''}
+                        ${metadata.tokens ? `<span>📊 ${metadata.tokens} tokens</span>` : ''}
+                    </div>
+                </div>
+                ${formatMessage(content)}
+                <button class="copy-btn" onclick="copyMessage(this)">📋 Copy</button>
+            </div>
+        `;
+    } else {
+        // Standard formatting for user messages
+        messageDiv.innerHTML = `
+            <div class="message-content">
+                ${formatMessage(content)}
+            </div>
+        `;
+    }
+    
+    learningChat.appendChild(messageDiv);
+    learningChat.scrollTop = learningChat.scrollHeight;
+}
+
+// Learning Typing Indicator
+function showLearningTyping() {
+    const learningChat = document.getElementById('learning-chat');
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'message assistant';
+    typingDiv.id = 'learning-typing-indicator';
+    
+    typingDiv.innerHTML = `
+        <div class="typing-animation">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+        </div>
+    `;
+    
+    learningChat.appendChild(typingDiv);
+    learningChat.scrollTop = learningChat.scrollHeight;
+}
+
+function hideLearningTyping() {
+    const typingIndicator = document.getElementById('learning-typing-indicator');
+    if (typingIndicator) {
+        typingIndicator.remove();
+    }
+}
+
+function getLearningWelcomeMessage(courseId) {
+    const welcomeMessages = {
+        'spanish': "¡Hola! I'm your Spanish tutor. Let's start with basic greetings. Can you tell me how to say 'Hello, how are you?' in Spanish?",
+        'french': "Bonjour! I'm your French tutor. Let's begin with pronunciation. Try saying 'Bonjour, comment allez-vous?' - Hello, how are you?",
+        'javascript': "Hello! I'm your JavaScript tutor. Let's start with the basics. Can you tell me what you know about variables in JavaScript?",
+        'python-dev': "Hi! I'm your Python tutor. Let's begin coding! What would you like to learn first - variables, functions, or data structures?",
+        'math': "Hello! I'm your Mathematics tutor. What area of math would you like to explore today - algebra, calculus, or statistics?",
+        'science': "Greetings! I'm your Science tutor. Are you interested in physics, chemistry, biology, or earth science today?",
+        // Add more welcome messages for other courses
+    };
+    
+    return welcomeMessages[courseId] || `Welcome to ${courseId}! I'm your AI tutor. What would you like to learn today?`;
+}
+
+function generateTutorResponse(userMessage) {
+    // This is a simple example - you'll integrate this with your main chat system
+    const responses = [
+        "Great question! Let me explain that step by step...",
+        "I can help you with that! Here's what you need to know:",
+        "Excellent! You're making good progress. Let's dive deeper:",
+        "That's a common question. Here's the answer:",
+        "Perfect! Now let's try a practical example:"
+    ];
+    
+    return responses[Math.floor(Math.random() * responses.length)] + " " + userMessage;
+}
 
 // Update Home Page Statistics
 async function updateHomeStats() {
@@ -1524,5 +1930,25 @@ async function processCode(action = 'generate') {
         }
     } catch (error) {
         resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+    }
+} 
+
+// Model memory functions
+function saveLastUsedModel(modelName) {
+    localStorage.setItem('lastUsedModel', modelName);
+    console.log('💾 Saved last used model:', modelName);
+}
+
+function getLastUsedModel() {
+    const saved = localStorage.getItem('lastUsedModel');
+    console.log('🔄 Loading last used model:', saved);
+    return saved;
+}
+
+function setModelDropdown(modelName) {
+    const modelSelect = document.getElementById('model-select');
+    if (modelSelect && modelName) {
+        modelSelect.value = modelName;
+        console.log('✅ Set dropdown to:', modelName);
     }
 } 

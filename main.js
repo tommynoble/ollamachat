@@ -845,6 +845,159 @@ except Exception as e:
     });
 });
 
+// Check model readiness for chat
+ipcMain.handle('check-model-readiness', async (event) => {
+    return new Promise((resolve) => {
+        const python = spawn('python3', [
+            '-c',
+            `
+import sys
+import json
+import requests
+import time
+
+try:
+    # First check if server is responding
+    response = requests.get('http://localhost:11434/api/version', timeout=3)
+    if response.status_code != 200:
+        print(json.dumps({"ready": False, "loading": False, "error": "Server not responding"}))
+        exit()
+    
+    # Check if we can get models (this tells us if models are accessible)
+    models_response = requests.get('http://localhost:11434/api/tags', timeout=5)
+    if models_response.status_code != 200:
+        print(json.dumps({"ready": False, "loading": True, "error": "Models loading"}))
+        exit()
+    
+    models_data = models_response.json()
+    if not models_data.get('models'):
+        print(json.dumps({"ready": False, "loading": False, "error": "No models available"}))
+        exit()
+    
+    # Test if we can actually use a model for chat (quick test)
+    first_model = models_data['models'][0]['name']
+    test_payload = {
+        "model": first_model,
+        "messages": [{"role": "user", "content": "test"}],
+        "stream": False
+    }
+    
+    # Quick test chat - if this works, models are ready
+    chat_response = requests.post('http://localhost:11434/api/chat', 
+                                 json=test_payload, timeout=10)
+    
+    if chat_response.status_code == 200:
+        print(json.dumps({"ready": True, "loading": False, "model": first_model}))
+    else:
+        print(json.dumps({"ready": False, "loading": True, "error": "Model loading"}))
+        
+except requests.exceptions.Timeout:
+    print(json.dumps({"ready": False, "loading": True, "error": "Model loading (timeout)"}))
+except Exception as e:
+    print(json.dumps({"ready": False, "loading": False, "error": str(e)}))
+            `
+        ]);
+
+        let output = '';
+        python.stdout.on('data', (data) => {
+            output += data.toString();
+        });
+
+        python.on('close', (code) => {
+            try {
+                const result = JSON.parse(output.trim());
+                resolve(result);
+            } catch (e) {
+                resolve({ ready: false, loading: false, error: 'Failed to parse response' });
+            }
+        });
+    });
+});
+
+// Check Ollama status
+ipcMain.handle('check-ollama-status', async (event) => {
+    return new Promise((resolve) => {
+        const python = spawn('python3', [
+            '-c',
+            `
+import sys
+import json
+import requests
+
+try:
+    response = requests.get('http://localhost:11434/api/version', timeout=3)
+    if response.status_code == 200:
+        print(json.dumps({"running": True}))
+    else:
+        print(json.dumps({"running": False}))
+except:
+    print(json.dumps({"running": False}))
+            `
+        ]);
+
+        let output = '';
+        python.stdout.on('data', (data) => {
+            output += data.toString();
+        });
+
+        python.on('close', (code) => {
+            try {
+                const result = JSON.parse(output.trim());
+                resolve(result);
+            } catch (e) {
+                resolve({ running: false });
+            }
+        });
+    });
+});
+
+// Start Ollama server
+ipcMain.handle('start-ollama', async (event) => {
+    return new Promise((resolve) => {
+        const python = spawn('python3', [
+            '-c',
+            `
+import sys
+import json
+import subprocess
+import time
+import requests
+
+try:
+    # Try to start ollama serve
+    process = subprocess.Popen(['ollama', 'serve'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    
+    # Wait a bit and check if it's running
+    time.sleep(3)
+    
+    # Test if server is responding
+    response = requests.get('http://localhost:11434/api/version', timeout=5)
+    if response.status_code == 200:
+        print(json.dumps({"success": True, "message": "Ollama started successfully"}))
+    else:
+        print(json.dumps({"success": False, "error": "Ollama server not responding"}))
+        
+except Exception as e:
+    print(json.dumps({"success": False, "error": str(e)}))
+            `
+        ]);
+
+        let output = '';
+        python.stdout.on('data', (data) => {
+            output += data.toString();
+        });
+
+        python.on('close', (code) => {
+            try {
+                const result = JSON.parse(output.trim());
+                resolve(result);
+            } catch (e) {
+                resolve({ success: false, error: 'Failed to start Ollama' });
+            }
+        });
+    });
+});
+
 ipcMain.handle('get-models', async (event) => {
     return new Promise((resolve, reject) => {
         const python = spawn('python3', [
@@ -885,43 +1038,6 @@ except Exception as e:
                 }
             } else {
                 reject({ success: false, error: error || 'Failed to get models' });
-            }
-        });
-    });
-});
-
-ipcMain.handle('check-ollama-status', async (event) => {
-    return new Promise((resolve) => {
-        const python = spawn('python3', [
-            '-c',
-            `
-import sys
-import json
-sys.path.append('${__dirname}')
-from ollama_chat import OllamaChat
-
-try:
-    chat = OllamaChat()
-    installed = chat.check_ollama_installation()
-    running = chat.check_ollama_server()
-    print(json.dumps({"installed": installed, "running": running}))
-except Exception as e:
-    print(json.dumps({"installed": False, "running": False}))
-            `
-        ]);
-
-        let output = '';
-
-        python.stdout.on('data', (data) => {
-            output += data.toString();
-        });
-
-        python.on('close', (code) => {
-            try {
-                const result = JSON.parse(output.trim());
-                resolve(result);
-            } catch (e) {
-                resolve({ installed: false, running: false });
             }
         });
     });

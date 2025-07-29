@@ -18,8 +18,9 @@
                 </div>
             </div>
             <div class="nav-menu">
-                <button class="nav-btn active" data-view="home">🏠 Home</button>
+                <button class="nav-btn" data-view="home">🏠 Home</button>
                 <button class="nav-btn" data-view="chat">💬 Chat</button>
+                <button class="nav-btn" data-view="learning">🎓 Learning</button>
                 <button class="nav-btn" data-view="models">📚 Models</button>
                 <button class="nav-btn" data-view="settings">⚙️ Settings</button>
             </div>
@@ -33,18 +34,22 @@
                     <p>Your AI model management and interaction platform</p>
                     
                     <div class="feature-grid">
-                        <div class="feature-card" onclick="switchToView('chat')">
+                        <div class="feature-card" data-view="chat">
                             <div class="feature-icon">💬</div>
-                            <h3>Chat with AI</h3>
-                            <p>Have conversations with your downloaded AI models</p>
-                            <button class="feature-btn">Start Chatting</button>
+                            <h3>AI Chat</h3>
+                            <p>Conversational AI with specialized prompts and context management</p>
                         </div>
                         
-                        <div class="feature-card" onclick="switchToView('models')">
-                            <div class="feature-icon">📚</div>
-                            <h3>Manage Models</h3>
-                            <p>Browse, download, and organize your AI models</p>
-                            <button class="feature-btn">Browse Models</button>
+                        <div class="feature-card" data-view="learning">
+                            <div class="feature-icon">🎓</div>
+                            <h3>AI Learning</h3>
+                            <p>Interactive courses with personalized AI tutors for languages, coding, and more</p>
+                        </div>
+                        
+                        <div class="feature-card" data-view="models">
+                            <div class="feature-icon">🤖</div>
+                            <h3>Model Manager</h3>
+                            <p>Download and manage AI models with external storage optimization</p>
                         </div>
                         
                         <div class="feature-card" onclick="switchToView('analyzer')">
@@ -83,20 +88,18 @@
         <!-- Chat View -->
         <div id="chat-view" class="view">
             <div class="chat-header">
+                <h2>💬 AI Chat</h2>
+                <p>Intelligent conversations powered by phi3 • Stored on your external drive</p>
                 <div class="chat-controls">
                     <select id="model-select" class="model-select">
                         <option value="">Select a model...</option>
                     </select>
-                    <button id="refresh-models" class="refresh-btn">🔄</button>
+                    <button id="refresh-models" class="refresh-btn" title="Refresh models">🔄</button>
                 </div>
             </div>
-            
-            <div class="chat-container">
-                <div id="chat-messages" class="chat-messages">
-                    <div class="welcome-message">
-                        <div class="welcome-icon">🚀</div>
-                        <h2>Welcome to AI Chat!</h2>
-                        <p>Select a model above and start your conversation.</p>
+            <div class="chat-content">
+                <div class="chat-container">
+                    <div id="chat-messages" class="chat-messages">
                         
 
                         
@@ -104,6 +107,15 @@
                             <button class="suggestion-btn" data-message="Hello! Can you help me with a coding question?">💻 Code Help</button>
                             <button class="suggestion-btn" data-message="Explain a complex topic in simple terms">🧠 Explain Concepts</button>
                             <button class="suggestion-btn" data-message="Help me write something creative">✨ Creative Writing</button>
+                            <button class="suggestion-btn" data-message="I need help analyzing some data or information">📊 Data Analysis</button>
+                            <button class="suggestion-btn" data-message="Help me research and find information about a topic">🔍 Research Assistant</button>
+                            <button class="suggestion-btn" data-message="Help me write a professional email">📧 Email Helper</button>
+                            <button class="suggestion-btn" data-message="I have a problem that needs solving step-by-step">🎯 Problem Solver</button>
+                            <button class="suggestion-btn" data-message="Help me create content for social media, blogs, or marketing">📝 Content Creator</button>
+                            <button class="suggestion-btn" data-message="Translate text or help me learn a language">🌍 Translator</button>
+                            <button class="suggestion-btn" data-message="Teach me something new or help me study">🎓 Tutor Mode</button>
+                            <button class="suggestion-btn" data-message="I need a quick, direct answer to a specific question">⚡ Quick Answer</button>
+                            <button class="suggestion-btn" data-message="Help me brainstorm ideas and think creatively">💡 Brainstorm</button>
                         </div>
                         
                         <div class="chat-quick-actions">
@@ -112,20 +124,20 @@
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="input-container">
-                <div class="input-wrapper">
-                    <textarea 
-                        id="message-input" 
-                        class="message-input" 
-                        placeholder="Type your message here... (Shift+Enter for new line)"
-                        rows="1"></textarea>
-                    <button id="send-button" class="send-button" disabled>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                            <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="currentColor"/>
-                        </svg>
-                    </button>
+                <div class="input-container">
+                    <div class="input-wrapper">
+                        <textarea 
+                            id="message-input" 
+                            class="message-input" 
+                            placeholder="Type your message here... (Shift+Enter for new line)"
+                            rows="1"></textarea>
+                        <button id="send-button" class="send-button" disabled>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="currentColor"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -209,6 +221,82 @@
                     <div id="code-results" class="code-results">
                         <div class="results-placeholder">
                             💻 Generated code and explanations will appear here
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Learning View -->
+        <div id="learning-view" class="view">
+            <div class="learning-header">
+                <h2>🎓 AI Learning Center</h2>
+                <p>Interactive courses powered by AI tutors</p>
+            </div>
+            
+            <div class="learning-content">
+                <div class="course-categories">
+                    <div class="category-card" data-category="languages">
+                        <div class="category-icon">🌍</div>
+                        <h3>Languages</h3>
+                        <p>Learn any language with conversational AI</p>
+                        <div class="course-list">
+                            <button class="course-btn" data-course="spanish">Spanish</button>
+                            <button class="course-btn" data-course="french">French</button>
+                            <button class="course-btn" data-course="japanese">Japanese</button>
+                            <button class="course-btn" data-course="python">Python</button>
+                        </div>
+                    </div>
+                    
+                    <div class="category-card" data-category="programming">
+                        <div class="category-icon">💻</div>
+                        <h3>Programming</h3>
+                        <p>Master coding with interactive AI guidance</p>
+                        <div class="course-list">
+                            <button class="course-btn" data-course="javascript">JavaScript</button>
+                            <button class="course-btn" data-course="python-dev">Python</button>
+                            <button class="course-btn" data-course="web-dev">Web Development</button>
+                            <button class="course-btn" data-course="ai-ml">AI & Machine Learning</button>
+                        </div>
+                    </div>
+                    
+                    <div class="category-card" data-category="skills">
+                        <div class="category-icon">🧠</div>
+                        <h3>Skills & Knowledge</h3>
+                        <p>Build expertise in various domains</p>
+                        <div class="course-list">
+                            <button class="course-btn" data-course="math">Mathematics</button>
+                            <button class="course-btn" data-course="science">Science</button>
+                            <button class="course-btn" data-course="business">Business</button>
+                            <button class="course-btn" data-course="writing">Creative Writing</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Active Learning Session -->
+                <div class="learning-session" id="learning-session" style="display: none;">
+                    <div class="session-header">
+                        <h3 id="current-course-title">Course Title</h3>
+                        <div class="session-controls">
+                            <button class="btn btn-secondary" id="pause-learning">⏸️ Pause</button>
+                            <button class="btn btn-danger" id="end-learning">❌ End Session</button>
+                        </div>
+                    </div>
+                    
+                    <div class="learning-chat" id="learning-chat">
+                        <!-- Learning conversation will appear here -->
+                    </div>
+                    
+                    <div class="learning-input-container">
+                        <div class="learning-input-wrapper">
+                            <textarea 
+                                id="learning-input" 
+                                placeholder="Type your response or question..."
+                                rows="2"
+                            ></textarea>
+                            <button id="send-learning-message" class="send-button">
+                                <span>📤</span>
+                            </button>
                         </div>
                     </div>
                 </div>
