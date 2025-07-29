@@ -1695,6 +1695,7 @@ function initializeView(viewName) {
       break;
     case 'models':
       loadDownloadedModels();
+      loadAvailableModels();
       checkExistingExternalDriveConfig();
       break;
     case 'analyzer':
