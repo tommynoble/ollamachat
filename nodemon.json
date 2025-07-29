@@ -1,0 +1,6 @@
+{
+  "watch": ["main.js", "api/", "*.py"],
+  "ext": "js,py",
+  "ignore": ["node_modules/", "dist/", "build/", "*.log"],
+  "delay": 1000
+}

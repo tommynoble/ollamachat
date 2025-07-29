@@ -5,6 +5,7 @@ bA Python application that provides a command-line interface to interact with lo
 ## Features
 
 ✅ **Core Features**
+
 - Check if Ollama is installed and running
 - Pull models automatically if not available
 - Start Ollama server if not running
@@ -14,12 +15,14 @@ bA Python application that provides a command-line interface to interact with lo
 - Configurable settings (model, temperature, system prompt)
 
 ⚙️ **Technical Features**
+
 - Uses Python standard libraries and requests
 - Cross-platform compatibility
 - Colored output for better UX
 - JSON-based configuration and chat history
 
 💡 **Bonus Features**
+
 - Save/load chat history to/from JSON files
 - Support for multiple models with easy switching
 - Real-time status indicators
@@ -35,12 +38,14 @@ bA Python application that provides a command-line interface to interact with lo
 ## Installation
 
 1. **Clone or download this repository**
+
    ```bash
    git clone <repository-url>
    cd ollamachat
    ```
 
 2. **Install Python dependencies**
+
    ```bash
    pip install -r requirements.txt
    ```
@@ -55,6 +60,7 @@ bA Python application that provides a command-line interface to interact with lo
 ### Basic Usage
 
 1. **Start the application**
+
    ```bash
    python ollama_chat.py
    ```
@@ -72,18 +78,18 @@ bA Python application that provides a command-line interface to interact with lo
 
 ### Available Commands
 
-| Command | Description |
-|---------|-------------|
-| `/help` | Show help information |
-| `/status` | Display current status and configuration |
-| `/config` | Show current configuration settings |
-| `/models` | List available models |
+| Command         | Description                                      |
+| --------------- | ------------------------------------------------ |
+| `/help`         | Show help information                            |
+| `/status`       | Display current status and configuration         |
+| `/config`       | Show current configuration settings              |
+| `/models`       | List available models                            |
 | `/pull <model>` | Download a specific model (e.g., `/pull llama2`) |
-| `/save` | Save current chat history to file |
-| `/load` | Load chat history from file |
-| `/clear` | Clear current chat history |
-| `/history` | Show recent chat history |
-| `/quit` | Exit the application |
+| `/save`         | Save current chat history to file                |
+| `/load`         | Load chat history from file                      |
+| `/clear`        | Clear current chat history                       |
+| `/history`      | Show recent chat history                         |
+| `/quit`         | Exit the application                             |
 
 ### Configuration
 
@@ -113,6 +119,7 @@ You can use various models available in Ollama:
 - `llama2:70b` - Largest LLaMA 2 model
 
 To use a different model:
+
 1. Pull it: `/pull mistral`
 2. It will automatically become your active model
 
@@ -171,6 +178,7 @@ The application is structured as a single class (`OllamaChat`) with clear separa
 ### Extending the Application
 
 Potential enhancements:
+
 - GUI interface using Tkinter or PyQt
 - Streaming responses
 - Model fine-tuning support
@@ -184,4 +192,4 @@ This project is open source. Feel free to modify and distribute according to you
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit pull requests or open issues for bugs and feature requests. 
+Contributions are welcome! Please feel free to submit pull requests or open issues for bugs and feature requests.

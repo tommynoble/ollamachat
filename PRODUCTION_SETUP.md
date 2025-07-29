@@ -5,6 +5,7 @@ This guide covers everything needed to deploy Ollama Chat in production with ent
 ## 📋 Production Checklist
 
 ### ✅ **Architecture & Infrastructure**
+
 - [ ] Docker containerization ✅
 - [ ] Multi-stage builds ✅
 - [ ] Health checks ✅
@@ -13,6 +14,7 @@ This guide covers everything needed to deploy Ollama Chat in production with ent
 - [ ] GPU support for Ollama ✅
 
 ### ✅ **Security**
+
 - [ ] JWT authentication ready ✅
 - [ ] Rate limiting ✅
 - [ ] CORS configuration ✅
@@ -21,6 +23,7 @@ This guide covers everything needed to deploy Ollama Chat in production with ent
 - [ ] Environment variable security ✅
 
 ### ✅ **Monitoring & Observability**
+
 - [ ] Prometheus metrics ✅
 - [ ] Grafana dashboards ✅
 - [ ] Structured logging ✅
@@ -28,6 +31,7 @@ This guide covers everything needed to deploy Ollama Chat in production with ent
 - [ ] Error tracking ready ✅
 
 ### ✅ **CI/CD & Automation**
+
 - [ ] GitHub Actions pipeline ✅
 - [ ] Automated testing ✅
 - [ ] Security scanning ✅
@@ -35,6 +39,7 @@ This guide covers everything needed to deploy Ollama Chat in production with ent
 - [ ] Automated releases ✅
 
 ### ✅ **Quality & Standards**
+
 - [ ] Code formatting (Black, Prettier) ✅
 - [ ] Linting (ESLint, Flake8) ✅
 - [ ] Type checking (TypeScript, MyPy) ✅
@@ -63,6 +68,7 @@ This guide covers everything needed to deploy Ollama Chat in production with ent
 ## 🚀 **Quick Start (Production)**
 
 ### 1. **Environment Setup**
+
 ```bash
 # Copy environment template
 cp env.example .env
@@ -72,6 +78,7 @@ nano .env
 ```
 
 ### 2. **Docker Deployment**
+
 ```bash
 # Production deployment
 docker-compose -f docker-compose.yml up -d
@@ -81,6 +88,7 @@ docker-compose up -d --scale api=3
 ```
 
 ### 3. **Kubernetes Deployment**
+
 ```bash
 # Apply Kubernetes manifests
 kubectl apply -f k8s/
@@ -92,16 +100,18 @@ kubectl get pods -l app=ollama-chat
 ## 🔧 **Configuration Guide**
 
 ### **Environment Variables**
-| Variable | Description | Production Value |
-|----------|-------------|------------------|
-| `ENVIRONMENT` | Deployment environment | `production` |
-| `LOG_LEVEL` | Logging level | `info` |
-| `SECRET_KEY` | App secret key | Generate strong key |
-| `OLLAMA_URL` | Ollama server URL | `http://ollama:11434` |
-| `CORS_ORIGINS` | Allowed origins | Your domain |
-| `RATE_LIMIT_REQUESTS` | Rate limit | `100` |
+
+| Variable              | Description            | Production Value      |
+| --------------------- | ---------------------- | --------------------- |
+| `ENVIRONMENT`         | Deployment environment | `production`          |
+| `LOG_LEVEL`           | Logging level          | `info`                |
+| `SECRET_KEY`          | App secret key         | Generate strong key   |
+| `OLLAMA_URL`          | Ollama server URL      | `http://ollama:11434` |
+| `CORS_ORIGINS`        | Allowed origins        | Your domain           |
+| `RATE_LIMIT_REQUESTS` | Rate limit             | `100`                 |
 
 ### **Security Configuration**
+
 ```bash
 # Generate secure keys
 openssl rand -base64 32  # SECRET_KEY
@@ -112,6 +122,7 @@ certbot --nginx -d yourdomain.com
 ```
 
 ### **Database Setup (Optional)**
+
 ```bash
 # PostgreSQL for chat history
 docker run -d \
@@ -124,6 +135,7 @@ docker run -d \
 ## 📊 **Monitoring Setup**
 
 ### **Prometheus Configuration**
+
 ```yaml
 # monitoring/prometheus.yml
 global:
@@ -137,6 +149,7 @@ scrape_configs:
 ```
 
 ### **Grafana Dashboards**
+
 - API Performance Metrics
 - Chat Request Analytics
 - System Resource Usage
@@ -144,6 +157,7 @@ scrape_configs:
 - User Activity Tracking
 
 ### **Alerts Setup**
+
 ```yaml
 # alerts.yml
 groups:
@@ -153,12 +167,13 @@ groups:
         expr: rate(chat_errors_total[5m]) > 0.1
         for: 2m
         annotations:
-          summary: "High error rate detected"
+          summary: 'High error rate detected'
 ```
 
 ## 🔄 **CI/CD Pipeline**
 
 ### **GitHub Actions Features**
+
 - ✅ **Multi-environment testing** (Python 3.11, 3.12)
 - ✅ **Security scanning** (Bandit, Safety)
 - ✅ **Code quality** (Black, ESLint, MyPy)
@@ -167,6 +182,7 @@ groups:
 - ✅ **Automated deployments** (staging/production)
 
 ### **Release Process**
+
 ```bash
 # Create release
 git tag v1.0.0
@@ -182,6 +198,7 @@ git push origin v1.0.0
 ## 🛡️ **Security Best Practices**
 
 ### **Application Security**
+
 - Rate limiting per IP/user
 - Input validation and sanitization
 - JWT token expiration
@@ -189,6 +206,7 @@ git push origin v1.0.0
 - Security headers (HSTS, CSP)
 
 ### **Infrastructure Security**
+
 - Network segmentation
 - Secrets management
 - Regular security updates
@@ -196,6 +214,7 @@ git push origin v1.0.0
 - Access logging
 
 ### **Data Security**
+
 - Encryption at rest
 - Encryption in transit
 - Data retention policies
@@ -205,6 +224,7 @@ git push origin v1.0.0
 ## 📈 **Scaling Strategy**
 
 ### **Horizontal Scaling**
+
 ```bash
 # Scale API servers
 docker-compose up -d --scale api=5
@@ -214,12 +234,14 @@ kubectl autoscale deployment ollama-chat-api --min=2 --max=10 --cpu-percent=70
 ```
 
 ### **Database Scaling**
+
 - Read replicas for chat history
 - Connection pooling
 - Query optimization
 - Caching layer (Redis)
 
 ### **Performance Optimization**
+
 - Response caching
 - CDN for static assets
 - Database indexing
@@ -231,6 +253,7 @@ kubectl autoscale deployment ollama-chat-api --min=2 --max=10 --cpu-percent=70
 ### **Cloud Providers**
 
 #### **AWS Deployment**
+
 ```bash
 # ECS Deployment
 aws ecs create-cluster --cluster-name ollama-chat
@@ -238,6 +261,7 @@ aws ecs create-service --cluster ollama-chat --service-name api
 ```
 
 #### **Google Cloud**
+
 ```bash
 # Cloud Run Deployment
 gcloud run deploy ollama-chat-api \
@@ -246,6 +270,7 @@ gcloud run deploy ollama-chat-api \
 ```
 
 #### **Azure**
+
 ```bash
 # Container Instances
 az container create \
@@ -255,6 +280,7 @@ az container create \
 ```
 
 ### **On-Premise**
+
 - Docker Swarm for orchestration
 - Kubernetes for enterprise
 - VM-based deployment
@@ -263,6 +289,7 @@ az container create \
 ## 📋 **Production Checklist**
 
 ### **Pre-Deployment**
+
 - [ ] Environment variables configured
 - [ ] SSL certificates installed
 - [ ] Database migrations run
@@ -271,6 +298,7 @@ az container create \
 - [ ] Load testing completed
 
 ### **Post-Deployment**
+
 - [ ] Monitoring alerts configured
 - [ ] Backup strategy implemented
 - [ ] Log aggregation setup
@@ -278,6 +306,7 @@ az container create \
 - [ ] Rollback procedure tested
 
 ### **Maintenance**
+
 - [ ] Update schedule defined
 - [ ] Security patch process
 - [ ] Backup verification
@@ -287,14 +316,16 @@ az container create \
 ## 🆘 **Troubleshooting**
 
 ### **Common Issues**
-| Issue | Solution |
-|-------|----------|
-| High memory usage | Scale Ollama instances |
-| Slow responses | Check GPU availability |
+
+| Issue             | Solution                     |
+| ----------------- | ---------------------------- |
+| High memory usage | Scale Ollama instances       |
+| Slow responses    | Check GPU availability       |
 | Connection errors | Verify network configuration |
-| Auth failures | Check JWT configuration |
+| Auth failures     | Check JWT configuration      |
 
 ### **Debugging Commands**
+
 ```bash
 # Check container logs
 docker-compose logs -f api
@@ -319,4 +350,4 @@ curl http://localhost:8000/metrics
 
 ---
 
-**🎉 Congratulations! Your Ollama Chat app is now production-ready with enterprise-grade features!** 
+**🎉 Congratulations! Your Ollama Chat app is now production-ready with enterprise-grade features!**

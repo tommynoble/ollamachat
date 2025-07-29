@@ -1,335 +1,475 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ollama Chat</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
     <div class="app-container">
-        <!-- Navigation -->
-        <nav class="main-nav">
-            <div class="nav-brand">
-                <h1>🤖 Ollama Hub</h1>
-                <div class="status-indicator">
-                    <span id="status-dot" class="status-dot"></span>
-                    <span id="status-text">Checking...</span>
-                </div>
-            </div>
-            <div class="nav-menu">
-                <button class="nav-btn" data-view="home">🏠 Home</button>
-                <button class="nav-btn" data-view="chat">💬 Chat</button>
-                <button class="nav-btn" data-view="learning">🎓 Learning</button>
-                <button class="nav-btn" data-view="models">📚 Models</button>
-                <button class="nav-btn" data-view="settings">⚙️ Settings</button>
-            </div>
-        </nav>
+      <!-- Navigation -->
+      <nav class="main-nav">
+        <div class="nav-brand">
+          <h1>🤖 Ollama Hub</h1>
+          <div class="status-indicator">
+            <span id="status-dot" class="status-dot"></span>
+            <span id="status-text">Checking...</span>
+          </div>
+        </div>
+        <div class="nav-menu">
+          <button class="nav-btn" data-view="home">🏠 Home</button>
+          <button class="nav-btn" data-view="chat">💬 Chat</button>
+          <button class="nav-btn" data-view="learning">🎓 Learning</button>
+          <button class="nav-btn" data-view="models">📚 Models</button>
+          <button class="nav-btn" data-view="settings">⚙️ Settings</button>
+        </div>
+      </nav>
 
-        <!-- Home View -->
-        <div id="home-view" class="view active">
-            <div class="hero-section">
-                <div class="hero-content">
-                    <h1>Welcome to Ollama Hub</h1>
-                    <p>Your AI model management and interaction platform</p>
-                    
-                    <div class="feature-grid">
-                        <div class="feature-card" data-view="chat">
-                            <div class="feature-icon">💬</div>
-                            <h3>AI Chat</h3>
-                            <p>Conversational AI with specialized prompts and context management</p>
-                        </div>
-                        
-                        <div class="feature-card" data-view="learning">
-                            <div class="feature-icon">🎓</div>
-                            <h3>AI Learning</h3>
-                            <p>Interactive courses with personalized AI tutors for languages, coding, and more</p>
-                        </div>
-                        
-                        <div class="feature-card" data-view="models">
-                            <div class="feature-icon">🤖</div>
-                            <h3>Model Manager</h3>
-                            <p>Download and manage AI models with external storage optimization</p>
-                        </div>
-                        
-                        <div class="feature-card" onclick="switchToView('analyzer')">
-                            <div class="feature-icon">📄</div>
-                            <h3>Document Analysis</h3>
-                            <p>Analyze documents and text with AI models</p>
-                            <button class="feature-btn">Analyze Text</button>
-                        </div>
-                        
-                        <div class="feature-card" onclick="switchToView('coder')">
-                            <div class="feature-icon">💻</div>
-                            <h3>Code Assistant</h3>
-                            <p>Generate and review code with AI assistance</p>
-                            <button class="feature-btn">Code Helper</button>
-                        </div>
-                    </div>
-                </div>
+      <!-- Home View -->
+      <div id="home-view" class="view active">
+        <div class="hero-section">
+          <div class="hero-content">
+            <h1>Welcome to Ollama Hub</h1>
+            <p>Your AI model management and interaction platform</p>
+
+            <div class="feature-grid">
+              <div class="feature-card" data-view="chat">
+                <div class="feature-icon">💬</div>
+                <h3>AI Chat</h3>
+                <p>
+                  Conversational AI with specialized prompts and context
+                  management
+                </p>
+              </div>
+
+              <div class="feature-card" data-view="learning">
+                <div class="feature-icon">🎓</div>
+                <h3>AI Learning</h3>
+                <p>
+                  Interactive courses with personalized AI tutors for languages,
+                  coding, and more
+                </p>
+              </div>
+
+              <div class="feature-card" data-view="models">
+                <div class="feature-icon">🤖</div>
+                <h3>Model Manager</h3>
+                <p>
+                  Download and manage AI models with external storage
+                  optimization
+                </p>
+              </div>
+
+              <div class="feature-card" onclick="switchToView('analyzer')">
+                <div class="feature-icon">📄</div>
+                <h3>Document Analysis</h3>
+                <p>Analyze documents and text with AI models</p>
+                <button class="feature-btn">Analyze Text</button>
+              </div>
+
+              <div class="feature-card" onclick="switchToView('coder')">
+                <div class="feature-icon">💻</div>
+                <h3>Code Assistant</h3>
+                <p>Generate and review code with AI assistance</p>
+                <button class="feature-btn">Code Helper</button>
+              </div>
             </div>
-            
-            <div class="quick-stats">
-                <div class="stat-card">
-                    <div class="stat-number" id="downloaded-count">0</div>
-                    <div class="stat-label">Downloaded Models</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="storage-location">Local</div>
-                    <div class="stat-label">Storage Location</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="active-model">None</div>
-                    <div class="stat-label">Active Model</div>
-                </div>
-            </div>
+          </div>
         </div>
 
-        <!-- Chat View -->
-        <div id="chat-view" class="view">
-            <div class="chat-header">
-                <h2>💬 AI Chat</h2>
-                <p>Intelligent conversations powered by phi3 • Stored on your external drive</p>
-                <div class="chat-controls">
-                    <select id="model-select" class="model-select">
-                        <option value="">Select a model...</option>
-                    </select>
-                    <button id="refresh-models" class="refresh-btn" title="Refresh models">🔄</button>
-                </div>
-            </div>
-            <div class="chat-content">
-                <div class="chat-container">
-                    <div id="chat-messages" class="chat-messages">
-                        
+        <div class="quick-stats">
+          <div class="stat-card">
+            <div class="stat-number" id="downloaded-count">0</div>
+            <div class="stat-label">Downloaded Models</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="storage-location">Local</div>
+            <div class="stat-label">Storage Location</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="active-model">None</div>
+            <div class="stat-label">Active Model</div>
+          </div>
+        </div>
+      </div>
 
-                        
-                        <div class="quick-suggestions">
-                            <button class="suggestion-btn" data-message="Hello! Can you help me with a coding question?">💻 Code Help</button>
-                            <button class="suggestion-btn" data-message="Explain a complex topic in simple terms">🧠 Explain Concepts</button>
-                            <button class="suggestion-btn" data-message="Help me write something creative">✨ Creative Writing</button>
-                            <button class="suggestion-btn" data-message="I need help analyzing some data or information">📊 Data Analysis</button>
-                            <button class="suggestion-btn" data-message="Help me research and find information about a topic">🔍 Research Assistant</button>
-                            <button class="suggestion-btn" data-message="Help me write a professional email">📧 Email Helper</button>
-                            <button class="suggestion-btn" data-message="I have a problem that needs solving step-by-step">🎯 Problem Solver</button>
-                            <button class="suggestion-btn" data-message="Help me create content for social media, blogs, or marketing">📝 Content Creator</button>
-                            <button class="suggestion-btn" data-message="Translate text or help me learn a language">🌍 Translator</button>
-                            <button class="suggestion-btn" data-message="Teach me something new or help me study">🎓 Tutor Mode</button>
-                            <button class="suggestion-btn" data-message="I need a quick, direct answer to a specific question">⚡ Quick Answer</button>
-                            <button class="suggestion-btn" data-message="Help me brainstorm ideas and think creatively">💡 Brainstorm</button>
-                        </div>
-                        
-                        <div class="chat-quick-actions">
-                            <button class="quick-action-btn" onclick="addMessage('/help', 'user'); handleSpecialCommands('/help', document.getElementById('model-select').value)">📖 Chat Help</button>
-                            <button class="quick-action-btn" onclick="addMessage('/clear', 'user'); handleSpecialCommands('/clear', document.getElementById('model-select').value)">🗑️ Clear History</button>
-                        </div>
-                    </div>
-                </div>
+      <!-- Chat View -->
+      <div id="chat-view" class="view">
+        <div class="chat-header">
+          <h2>💬 AI Chat</h2>
+          <p>
+            Intelligent conversations powered by phi3 • Stored on your external
+            drive
+          </p>
+          <div class="chat-controls">
+            <select id="model-select" class="model-select">
+              <option value="">Select a model...</option>
+            </select>
+            <button
+              id="refresh-models"
+              class="refresh-btn"
+              title="Refresh models"
+            >
+              🔄
+            </button>
+          </div>
+        </div>
+        <div class="chat-content">
+          <div class="chat-container">
+            <div id="chat-messages" class="chat-messages">
+              <div class="quick-suggestions">
+                <button
+                  class="suggestion-btn"
+                  data-message="Hello! Can you help me with a coding question?"
+                >
+                  💻 Code Help
+                </button>
+                <button
+                  class="suggestion-btn"
+                  data-message="Explain a complex topic in simple terms"
+                >
+                  🧠 Explain Concepts
+                </button>
+                <button
+                  class="suggestion-btn"
+                  data-message="Help me write something creative"
+                >
+                  ✨ Creative Writing
+                </button>
+                <button
+                  class="suggestion-btn"
+                  data-message="I need help analyzing some data or information"
+                >
+                  📊 Data Analysis
+                </button>
+                <button
+                  class="suggestion-btn"
+                  data-message="Help me research and find information about a topic"
+                >
+                  🔍 Research Assistant
+                </button>
+                <button
+                  class="suggestion-btn"
+                  data-message="Help me write a professional email"
+                >
+                  📧 Email Helper
+                </button>
+                <button
+                  class="suggestion-btn"
+                  data-message="I have a problem that needs solving step-by-step"
+                >
+                  🎯 Problem Solver
+                </button>
+                <button
+                  class="suggestion-btn"
+                  data-message="Help me create content for social media, blogs, or marketing"
+                >
+                  📝 Content Creator
+                </button>
+                <button
+                  class="suggestion-btn"
+                  data-message="Translate text or help me learn a language"
+                >
+                  🌍 Translator
+                </button>
+                <button
+                  class="suggestion-btn"
+                  data-message="Teach me something new or help me study"
+                >
+                  🎓 Tutor Mode
+                </button>
+                <button
+                  class="suggestion-btn"
+                  data-message="I need a quick, direct answer to a specific question"
+                >
+                  ⚡ Quick Answer
+                </button>
+                <button
+                  class="suggestion-btn"
+                  data-message="Help me brainstorm ideas and think creatively"
+                >
+                  💡 Brainstorm
+                </button>
+              </div>
 
-                <div class="input-container">
-                    <div class="input-wrapper">
-                        <textarea 
-                            id="message-input" 
-                            class="message-input" 
-                            placeholder="Type your message here... (Shift+Enter for new line)"
-                            rows="1"></textarea>
-                        <button id="send-button" class="send-button" disabled>
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                                <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="currentColor"/>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
+              <div class="chat-quick-actions">
+                <button
+                  class="quick-action-btn"
+                  onclick="addMessage('/help', 'user'); handleSpecialCommands('/help', document.getElementById('model-select').value)"
+                >
+                  📖 Chat Help
+                </button>
+                <button
+                  class="quick-action-btn"
+                  onclick="addMessage('/clear', 'user'); handleSpecialCommands('/clear', document.getElementById('model-select').value)"
+                >
+                  🗑️ Clear History
+                </button>
+              </div>
             </div>
+          </div>
+
+          <div class="input-container">
+            <div class="input-wrapper">
+              <textarea
+                id="message-input"
+                class="message-input"
+                placeholder="Type your message here... (Shift+Enter for new line)"
+                rows="1"
+              ></textarea>
+              <button id="send-button" class="send-button" disabled>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M2 21L23 12L2 3V10L17 12L2 14V21Z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Models View -->
+      <div id="models-view" class="view">
+        <div class="models-header">
+          <h2>📚 Model Management</h2>
+          <div class="models-controls">
+            <div class="current-location">
+              <span id="current-storage-path">External drive required</span>
+              <span class="storage-type local">⚠️ Lightweight App</span>
+            </div>
+            <button id="open-models-folder" class="open-folder-btn">
+              📁 Open Models Folder
+            </button>
+          </div>
         </div>
 
-        <!-- Models View -->
-        <div id="models-view" class="view">
-            <div class="models-header">
-                <h2>📚 Model Management</h2>
-                <div class="models-controls">
-                    <div class="current-location">
-                        <span id="current-storage-path">External drive required</span>
-                        <span class="storage-type local">⚠️ Lightweight App</span>
-                    </div>
-                    <button id="open-models-folder" class="open-folder-btn">📁 Open Models Folder</button>
-                </div>
-            </div>
-            
-            <div class="models-content">
-                <div class="models-grid" id="models-grid">
-                    <div class="loading-models">🔄 Loading models...</div>
-                </div>
-            </div>
+        <div class="models-content">
+          <div class="models-grid" id="models-grid">
+            <div class="loading-models">🔄 Loading models...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Document Analyzer View -->
+      <div id="analyzer-view" class="view">
+        <div class="analyzer-header">
+          <h2>📄 Document Analysis</h2>
+          <select id="analyzer-model-select" class="model-select">
+            <option value="">Select analysis model...</option>
+          </select>
         </div>
 
-        <!-- Document Analyzer View -->
-        <div id="analyzer-view" class="view">
-            <div class="analyzer-header">
-                <h2>📄 Document Analysis</h2>
-                <select id="analyzer-model-select" class="model-select">
-                    <option value="">Select analysis model...</option>
-                </select>
+        <div class="analyzer-content">
+          <div class="input-section">
+            <textarea
+              id="text-input"
+              placeholder="Paste your text here or drag and drop a file..."
+              class="text-analyzer"
+            ></textarea>
+            <div class="analyzer-controls">
+              <button id="analyze-btn" class="analyze-btn">
+                🔍 Analyze Text
+              </button>
+              <button id="summarize-btn" class="analyze-btn">
+                📝 Summarize
+              </button>
+              <button id="extract-btn" class="analyze-btn">
+                📋 Extract Key Points
+              </button>
             </div>
-            
-            <div class="analyzer-content">
-                <div class="input-section">
-                    <textarea id="text-input" placeholder="Paste your text here or drag and drop a file..." class="text-analyzer"></textarea>
-                    <div class="analyzer-controls">
-                        <button id="analyze-btn" class="analyze-btn">🔍 Analyze Text</button>
-                        <button id="summarize-btn" class="analyze-btn">📝 Summarize</button>
-                        <button id="extract-btn" class="analyze-btn">📋 Extract Key Points</button>
-                    </div>
-                </div>
-                <div class="results-section">
-                    <div id="analysis-results" class="analysis-results">
-                        <div class="results-placeholder">
-                            📄 Analysis results will appear here
-                        </div>
-                    </div>
-                </div>
+          </div>
+          <div class="results-section">
+            <div id="analysis-results" class="analysis-results">
+              <div class="results-placeholder">
+                📄 Analysis results will appear here
+              </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Code Assistant View -->
+      <div id="coder-view" class="view">
+        <div class="coder-header">
+          <h2>💻 Code Assistant</h2>
+          <select id="coder-model-select" class="model-select">
+            <option value="">Select coding model...</option>
+          </select>
         </div>
 
-        <!-- Code Assistant View -->
-        <div id="coder-view" class="view">
-            <div class="coder-header">
-                <h2>💻 Code Assistant</h2>
-                <select id="coder-model-select" class="model-select">
-                    <option value="">Select coding model...</option>
-                </select>
+        <div class="coder-content">
+          <div class="code-input-section">
+            <div class="code-controls">
+              <select id="language-select" class="language-select">
+                <option value="python">Python</option>
+                <option value="javascript">JavaScript</option>
+                <option value="html">HTML</option>
+                <option value="css">CSS</option>
+                <option value="java">Java</option>
+                <option value="cpp">C++</option>
+                <option value="other">Other</option>
+              </select>
+              <button id="generate-btn" class="code-btn">✨ Generate</button>
+              <button id="review-btn" class="code-btn">🔍 Review</button>
+              <button id="explain-btn" class="code-btn">📖 Explain</button>
             </div>
-            
-            <div class="coder-content">
-                <div class="code-input-section">
-                    <div class="code-controls">
-                        <select id="language-select" class="language-select">
-                            <option value="python">Python</option>
-                            <option value="javascript">JavaScript</option>
-                            <option value="html">HTML</option>
-                            <option value="css">CSS</option>
-                            <option value="java">Java</option>
-                            <option value="cpp">C++</option>
-                            <option value="other">Other</option>
-                        </select>
-                        <button id="generate-btn" class="code-btn">✨ Generate</button>
-                        <button id="review-btn" class="code-btn">🔍 Review</button>
-                        <button id="explain-btn" class="code-btn">📖 Explain</button>
-                    </div>
-                    <textarea id="code-input" placeholder="Describe what you want to code, or paste existing code for review..." class="code-editor"></textarea>
-                </div>
-                <div class="code-results-section">
-                    <div id="code-results" class="code-results">
-                        <div class="results-placeholder">
-                            💻 Generated code and explanations will appear here
-                        </div>
-                    </div>
-                </div>
+            <textarea
+              id="code-input"
+              placeholder="Describe what you want to code, or paste existing code for review..."
+              class="code-editor"
+            ></textarea>
+          </div>
+          <div class="code-results-section">
+            <div id="code-results" class="code-results">
+              <div class="results-placeholder">
+                💻 Generated code and explanations will appear here
+              </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Learning View -->
+      <div id="learning-view" class="view">
+        <div class="learning-header">
+          <h2>🎓 AI Learning Center</h2>
+          <p>Interactive courses powered by AI tutors</p>
         </div>
 
-        <!-- Learning View -->
-        <div id="learning-view" class="view">
-            <div class="learning-header">
-                <h2>🎓 AI Learning Center</h2>
-                <p>Interactive courses powered by AI tutors</p>
+        <div class="learning-content">
+          <div class="course-categories">
+            <div class="category-card" data-category="languages">
+              <div class="category-icon">🌍</div>
+              <h3>Languages</h3>
+              <p>Learn any language with conversational AI</p>
+              <div class="course-list">
+                <button class="course-btn" data-course="spanish">
+                  Spanish
+                </button>
+                <button class="course-btn" data-course="french">French</button>
+                <button class="course-btn" data-course="japanese">
+                  Japanese
+                </button>
+                <button class="course-btn" data-course="python">Python</button>
+              </div>
             </div>
-            
-            <div class="learning-content">
-                <div class="course-categories">
-                    <div class="category-card" data-category="languages">
-                        <div class="category-icon">🌍</div>
-                        <h3>Languages</h3>
-                        <p>Learn any language with conversational AI</p>
-                        <div class="course-list">
-                            <button class="course-btn" data-course="spanish">Spanish</button>
-                            <button class="course-btn" data-course="french">French</button>
-                            <button class="course-btn" data-course="japanese">Japanese</button>
-                            <button class="course-btn" data-course="python">Python</button>
-                        </div>
-                    </div>
-                    
-                    <div class="category-card" data-category="programming">
-                        <div class="category-icon">💻</div>
-                        <h3>Programming</h3>
-                        <p>Master coding with interactive AI guidance</p>
-                        <div class="course-list">
-                            <button class="course-btn" data-course="javascript">JavaScript</button>
-                            <button class="course-btn" data-course="python-dev">Python</button>
-                            <button class="course-btn" data-course="web-dev">Web Development</button>
-                            <button class="course-btn" data-course="ai-ml">AI & Machine Learning</button>
-                        </div>
-                    </div>
-                    
-                    <div class="category-card" data-category="skills">
-                        <div class="category-icon">🧠</div>
-                        <h3>Skills & Knowledge</h3>
-                        <p>Build expertise in various domains</p>
-                        <div class="course-list">
-                            <button class="course-btn" data-course="math">Mathematics</button>
-                            <button class="course-btn" data-course="science">Science</button>
-                            <button class="course-btn" data-course="business">Business</button>
-                            <button class="course-btn" data-course="writing">Creative Writing</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Active Learning Session -->
-                <div class="learning-session" id="learning-session" style="display: none;">
-                    <div class="session-header">
-                        <h3 id="current-course-title">Course Title</h3>
-                        <div class="session-controls">
-                            <button class="btn btn-secondary" id="pause-learning">⏸️ Pause</button>
-                            <button class="btn btn-danger" id="end-learning">❌ End Session</button>
-                        </div>
-                    </div>
-                    
-                    <div class="learning-chat" id="learning-chat">
-                        <!-- Learning conversation will appear here -->
-                    </div>
-                    
-                    <div class="learning-input-container">
-                        <div class="learning-input-wrapper">
-                            <textarea 
-                                id="learning-input" 
-                                placeholder="Type your response or question..."
-                                rows="2"
-                            ></textarea>
-                            <button id="send-learning-message" class="send-button">
-                                <span>📤</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
+
+            <div class="category-card" data-category="programming">
+              <div class="category-icon">💻</div>
+              <h3>Programming</h3>
+              <p>Master coding with interactive AI guidance</p>
+              <div class="course-list">
+                <button class="course-btn" data-course="javascript">
+                  JavaScript
+                </button>
+                <button class="course-btn" data-course="python-dev">
+                  Python
+                </button>
+                <button class="course-btn" data-course="web-dev">
+                  Web Development
+                </button>
+                <button class="course-btn" data-course="ai-ml">
+                  AI & Machine Learning
+                </button>
+              </div>
             </div>
+
+            <div class="category-card" data-category="skills">
+              <div class="category-icon">🧠</div>
+              <h3>Skills & Knowledge</h3>
+              <p>Build expertise in various domains</p>
+              <div class="course-list">
+                <button class="course-btn" data-course="math">
+                  Mathematics
+                </button>
+                <button class="course-btn" data-course="science">
+                  Science
+                </button>
+                <button class="course-btn" data-course="business">
+                  Business
+                </button>
+                <button class="course-btn" data-course="writing">
+                  Creative Writing
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Active Learning Session -->
+          <div
+            class="learning-session"
+            id="learning-session"
+            style="display: none"
+          >
+            <div class="session-header">
+              <h3 id="current-course-title">Course Title</h3>
+              <div class="session-controls">
+                <button class="btn btn-secondary" id="pause-learning">
+                  ⏸️ Pause
+                </button>
+                <button class="btn btn-danger" id="end-learning">
+                  ❌ End Session
+                </button>
+              </div>
+            </div>
+
+            <div class="learning-chat" id="learning-chat">
+              <!-- Learning conversation will appear here -->
+            </div>
+
+            <div class="learning-input-container">
+              <div class="learning-input-wrapper">
+                <textarea
+                  id="learning-input"
+                  placeholder="Type your response or question..."
+                  rows="2"
+                ></textarea>
+                <button id="send-learning-message" class="send-button">
+                  <span>📤</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings View -->
+      <div id="settings-view" class="view">
+        <div class="settings-header">
+          <h2>⚙️ Settings</h2>
         </div>
 
-        <!-- Settings View -->
-        <div id="settings-view" class="view">
-            <div class="settings-header">
-                <h2>⚙️ Settings</h2>
+        <div class="settings-content">
+          <div class="setting-section">
+            <h3>External Drives</h3>
+            <div class="drives-controls">
+              <button id="refresh-drives" class="refresh-drives-btn">
+                🔄 Refresh
+              </button>
+              <span
+                id="auto-refresh-indicator"
+                class="auto-refresh-indicator"
+                style="display: none"
+                >🔄 Auto-refreshing...</span
+              >
             </div>
-            
-            <div class="settings-content">
-                <div class="setting-section">
-                    <h3>External Drives</h3>
-                    <div class="drives-controls">
-                        <button id="refresh-drives" class="refresh-drives-btn">🔄 Refresh</button>
-                        <span id="auto-refresh-indicator" class="auto-refresh-indicator" style="display: none;">🔄 Auto-refreshing...</span>
-                    </div>
-                    <div id="drives-list" class="drives-list">
-                        <div class="scanning-drives">Scanning for drives...</div>
-                    </div>
-                </div>
+            <div id="drives-list" class="drives-list">
+              <div class="scanning-drives">Scanning for drives...</div>
             </div>
+          </div>
         </div>
+      </div>
 
-        <!-- Loading Overlay -->
-        <div id="loading-overlay" class="loading-overlay hidden">
-            <div class="loading-spinner"></div>
-            <p>AI is thinking...</p>
-        </div>
+      <!-- Loading Overlay -->
+      <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
+        <p>AI is thinking...</p>
+      </div>
     </div>
 
     <script src="renderer.js"></script>
-</body>
-</html> 
+  </body>
+</html>

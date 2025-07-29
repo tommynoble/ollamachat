@@ -1,11 +1,13 @@
 # External Drive Support Progress
 
 ## Overview
+
 Implementation of external drive support for Ollama model storage to make the app lightweight by storing models on external drives instead of local storage.
 
 ## ✅ Completed Features
 
 ### 1. Drive Detection System
+
 - **File**: `drive_detector.py`
 - **Status**: ✅ Complete
 - **Description**: Python script that detects external drives by filtering out internal system drives
@@ -15,6 +17,7 @@ Implementation of external drive support for Ollama model storage to make the ap
   - Returns list of external drives with mount paths
 
 ### 2. Electron UI Integration
+
 - **Files**: `index.html`, `style.css`, `renderer.js`, `main.js`
 - **Status**: ✅ Complete
 - **Description**: Settings modal integrated into existing Electron chat app
@@ -25,6 +28,7 @@ Implementation of external drive support for Ollama model storage to make the ap
   - Visual indicator for auto-refresh status
 
 ### 3. Drive List Display
+
 - **Status**: ✅ Complete
 - **Features**:
   - Shows detected external drives with names and mount paths
@@ -33,6 +37,7 @@ Implementation of external drive support for Ollama model storage to make the ap
   - Real-time updates when drives are connected/disconnected
 
 ### 4. Eject Functionality
+
 - **Status**: ✅ Complete (with known system limitation)
 - **Features**:
   - Normal eject attempt first
@@ -41,6 +46,7 @@ Implementation of external drive support for Ollama model storage to make the ap
   - Proper IPC communication between Electron frontend and backend
 
 ### 5. Error Handling
+
 - **Status**: ✅ Complete
 - **Features**:
   - Detailed error messages instead of generic "[object Object]"
@@ -50,6 +56,7 @@ Implementation of external drive support for Ollama model storage to make the ap
 ## 🔧 Known Issues
 
 ### Eject System Limitation
+
 - **Issue**: Normal eject consistently fails due to `mds_stores` (Spotlight indexing) process
 - **Process**: PID 37078 (`/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores`)
 - **Current Workaround**: Force eject works reliably
@@ -62,6 +69,7 @@ Implementation of external drive support for Ollama model storage to make the ap
 ## 🚧 Pending Implementation
 
 ### 1. "Use for Models" Button Functionality
+
 - **Priority**: High
 - **Description**: Core feature to actually use external drives for model storage
 - **Implementation Steps**:
@@ -77,15 +85,17 @@ Implementation of external drive support for Ollama model storage to make the ap
   5. Optional: Copy existing models from local to external drive
 
 ### 2. Current Storage Location Display
+
 - **Priority**: Medium
 - **Description**: Show where Ollama models are currently stored
 - **Current Location**: `/Users/yevetteasante/.ollama/models` (from Ollama logs)
-- **Implementation**: 
+- **Implementation**:
   - Read `OLLAMA_MODELS` environment variable
   - Fallback to default path if not set
   - Display in "Current Model Storage" section with local/external indicator
 
 ### 3. Model Migration Feature
+
 - **Priority**: Medium
 - **Description**: Option to copy existing models when switching storage location
 - **Considerations**:
@@ -95,6 +105,7 @@ Implementation of external drive support for Ollama model storage to make the ap
   - Option to delete local copies after successful migration
 
 ### 4. Storage Space Monitoring
+
 - **Priority**: Low
 - **Description**: Show available space on selected drive
 - **Implementation**: Use `df` command or similar to check drive capacity
@@ -102,6 +113,7 @@ Implementation of external drive support for Ollama model storage to make the ap
 ## 🔧 Technical Implementation Details
 
 ### File Structure
+
 ```
 ollamachat/
 ├── drive_detector.py          # Python script for drive detection
@@ -112,10 +124,12 @@ ollamachat/
 ```
 
 ### IPC Handlers (main.js)
+
 - `detect-external-drives`: Calls `drive_detector.py` and returns drive list
 - `eject-drive`: Executes `diskutil unmount` with optional force flag
 
 ### UI Components (index.html)
+
 - Settings modal with drive list
 - Auto-refresh indicator
 - Drive action buttons (Use for Models, Eject)
@@ -139,18 +153,21 @@ ollamachat/
 ## 🐛 Debugging Notes
 
 ### Eject Issues
+
 - The force eject consistently works
 - Normal eject fails due to macOS Spotlight indexing (`mds_stores`)
 - This is a common macOS behavior, not necessarily an app bug
 - Consider making force eject the default or adding user preference
 
 ### Current Ollama Configuration
+
 ```
 OLLAMA_MODELS:/Users/yevetteasante/.ollama/models
 OLLAMA_HOST:http://127.0.0.1:11434
 ```
 
 ### Auto-refresh Behavior
+
 - Works correctly when settings modal is open
 - Clears interval when modal closes
 - Updates drive list every 3 seconds
@@ -166,5 +183,6 @@ OLLAMA_HOST:http://127.0.0.1:11434
 6. **Hot-swap Support**: Better handling of drive disconnection during usage
 
 ---
-*Last Updated: [Current Date]*
-*Status: Force eject working, restart needed to test normal eject* 
+
+_Last Updated: [Current Date]_
+_Status: Force eject working, restart needed to test normal eject_

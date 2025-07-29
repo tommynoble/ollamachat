@@ -2,11 +2,11 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   release:
-    types: [ published ]
+    types: [published]
 
 env:
   REGISTRY: ghcr.io
@@ -18,33 +18,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-          
+
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
           version: latest
           virtualenvs-create: true
           virtualenvs-in-project: true
-          
+
       - name: Load cached venv
         id: cached-poetry-dependencies
         uses: actions/cache@v3
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
-          
+
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: poetry install --no-interaction --no-root
-        
+
       - name: Security audit with bandit
         run: poetry run bandit -r api/ ollama_chat.py
-        
+
       - name: Safety check
         run: poetry run safety check
 
@@ -54,35 +54,35 @@ jobs:
     strategy:
       matrix:
         python-version: ['3.11', '3.12']
-        
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          
+
       - name: Install Poetry
         uses: snok/install-poetry@v1
-        
+
       - name: Install dependencies
         run: poetry install --no-interaction
-        
+
       - name: Code formatting check
         run: |
           poetry run black --check .
           poetry run isort --check-only .
-          
+
       - name: Linting
         run: poetry run flake8 .
-        
+
       - name: Type checking
         run: poetry run mypy .
-        
+
       - name: Run tests
         run: poetry run pytest --cov=api --cov=ollama_chat --cov-report=xml
-        
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -94,22 +94,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-          
+
       - name: Install dependencies
         run: npm ci
-        
+
       - name: Run ESLint
         run: npm run lint
-        
+
       - name: Run tests
         run: npm test
-        
+
       - name: Build Electron app
         run: npm run build
 
@@ -120,18 +120,18 @@ jobs:
     permissions:
       contents: read
       packages: write
-      
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        
+
       - name: Log in to Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -142,7 +142,7 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -159,20 +159,20 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop'
     environment: staging
-    
+
     steps:
       - name: Deploy to staging
         run: |
           echo "Deploying to staging environment"
           # Add your staging deployment commands here
-          
+
   # Deployment to Production
   deploy-production:
     needs: [docker-build]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     environment: production
-    
+
     steps:
       - name: Deploy to production
         run: |
@@ -184,30 +184,30 @@ jobs:
     needs: [frontend-test]
     runs-on: ${{ matrix.os }}
     if: github.event_name == 'release'
-    
+
     strategy:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-          
+
       - name: Install dependencies
         run: npm ci
-        
+
       - name: Build and release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run dist
-        
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
           name: electron-app-${{ matrix.os }}
-          path: dist/ 
+          path: dist/
