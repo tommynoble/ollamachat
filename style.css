@@ -3354,3 +3354,202 @@ body {
   border-radius: 4px;
   border: 1px solid #e2e8f0;
 }
+
+/* 📊 SMART CHART COMPONENTS */
+/* Auto-generated visualizations for enhanced chat responses */
+
+.chart-container {
+  margin: 16px 0;
+  padding: 16px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+}
+
+.chart-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 12px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Bar Chart Styles */
+.simple-bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bar-item {
+  display: grid;
+  grid-template-columns: 100px 1fr 70px;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.bar-label {
+  font-weight: 500;
+  color: #475569;
+}
+
+.bar-track {
+  height: 16px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%);
+  border-radius: 8px;
+  transition: width 0.8s ease-out;
+  animation: barGrow 0.8s ease-out;
+}
+
+.bar-value {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-align: right;
+}
+
+/* Impact Cards */
+.impact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.impact-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  border-radius: 10px;
+  text-align: center;
+  transition: transform 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.impact-card:hover {
+  transform: translateY(-1px);
+}
+
+.impact-card.critical {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border-color: #fca5a5;
+}
+
+.impact-card.high {
+  background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%);
+  border-color: #fdba74;
+}
+
+.impact-card.moderate {
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+  border-color: #86efac;
+}
+
+.impact-icon {
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+
+.impact-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #1e293b;
+  margin-bottom: 2px;
+}
+
+.impact-level {
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+/* Progress Timeline */
+.progress-timeline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 16px 0;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 10px;
+  position: relative;
+}
+
+.progress-timeline::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 20px;
+  right: 20px;
+  height: 2px;
+  background: #e2e8f0;
+  z-index: 1;
+}
+
+.timeline-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  z-index: 2;
+  background: #f8fafc;
+  padding: 0 8px;
+}
+
+.timeline-emoji {
+  font-size: 16px;
+  margin-bottom: 2px;
+}
+
+.timeline-text {
+  color: #475569;
+  text-align: center;
+  max-width: 80px;
+}
+
+/* Chart Animations */
+@keyframes barGrow {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .bar-item {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    text-align: center;
+  }
+  
+  .impact-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .progress-timeline {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .progress-timeline::before {
+    display: none;
+  }
+}
+
+

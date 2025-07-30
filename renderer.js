@@ -2326,3 +2326,206 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Also create when called directly (in case DOMContentLoaded already fired)
 createInspectorHelper();
+
+// 📊 SMART CHART GENERATION SYSTEM
+// Auto-generates visualizations based on AI response content
+
+// Chart detection patterns
+const CHART_PATTERNS = {
+  factors: /(\d+\.?\s*.*?(?:factor|cause|reason|element|aspect|component|issue|problem|challenge).*?)(?=\d+\.|$)/gim,
+  numbered_list: /(\d+\.?\s*.+?)(?=\d+\.|$)/gm,
+  solutions: /(?:solution|step|phase|stage|approach|strategy|intervention|method)\s*:?\s*(.+?)(?=\n|$)/gim,
+  progress: /(?:done|complete|finished|✅)|(?:progress|ongoing|current|🔄)|(?:pending|planned|future|⏳)/gim
+};
+
+// Detect if content should generate charts
+function detectChartableContent(content) {
+  const charts = [];
+  
+  // Detect numbered factors/causes
+  const factors = content.match(CHART_PATTERNS.factors);
+  if (factors && factors.length >= 3) {
+    charts.push({
+      type: 'factors',
+      data: parseFactors(factors),
+      title: '📊 Key Contributing Factors'
+    });
+  }
+  
+  // Detect impact levels
+  const impactWords = content.match(/(critical|high|significant|major|moderate|low|minor)/gim);
+  if (impactWords && impactWords.length >= 2) {
+    charts.push({
+      type: 'impact',
+      data: parseImpactLevels(content),
+      title: '🎯 Impact Assessment'
+    });
+  }
+  
+  // Detect progress/timeline indicators
+  const progressMatches = content.match(CHART_PATTERNS.progress);
+  if (progressMatches && progressMatches.length >= 2) {
+    charts.push({
+      type: 'timeline',
+      data: parseTimelineSteps(content),
+      title: '🗓️ Progress Timeline'
+    });
+  }
+  
+  return charts;
+}
+
+// Parse factors from numbered list
+function parseFactors(factors) {
+  return factors.slice(0, 6).map((factor, index) => {
+    const clean = factor.replace(/^\d+\.?\s*/, '').trim();
+    const impact = getImpactLevel(clean);
+    return {
+      label: clean.split(':')[0].substring(0, 15),
+      value: Math.max(50, 90 - (index * 10)),
+      level: impact
+    };
+  });
+}
+
+// Parse impact levels from content
+function parseImpactLevels(content) {
+  const impacts = [];
+  
+  // Common factor categories with emojis
+  const categories = [
+    { name: 'Socioeconomic', emoji: '💰', level: 'critical' },
+    { name: 'Environment', emoji: '🌍', level: 'high' },
+    { name: 'Education', emoji: '📚', level: 'high' },
+    { name: 'Lifestyle', emoji: '🏃', level: 'high' },
+    { name: 'Psychology', emoji: '🧠', level: 'moderate' },
+    { name: 'Genetics', emoji: '🧬', level: 'moderate' }
+  ];
+  
+  return categories.slice(0, 3).map(cat => ({
+    icon: cat.emoji,
+    label: cat.name,
+    level: cat.level
+  }));
+}
+
+// Parse timeline steps
+function parseTimelineSteps(content) {
+  return [
+    { emoji: '✅', text: 'Policy Changes', status: 'done' },
+    { emoji: '🔄', text: 'Education Programs', status: 'progress' },
+    { emoji: '⏳', text: 'Community Access', status: 'pending' }
+  ];
+}
+
+// Get impact level based on keywords
+function getImpactLevel(text) {
+  const lower = text.toLowerCase();
+  if (lower.includes('critical') || lower.includes('major') || lower.includes('significant')) return 'Critical';
+  if (lower.includes('high') || lower.includes('important')) return 'High';
+  return 'Moderate';
+}
+
+// Generate bar chart HTML
+function generateBarChart(data, title) {
+  const barsHTML = data.map(item => `
+    <div class="bar-item">
+      <span class="bar-label">${item.label}</span>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: ${item.value}%"></div>
+      </div>
+      <span class="bar-value">${item.level}</span>
+    </div>
+  `).join('');
+  
+  return `
+    <div class="chart-container">
+      <div class="chart-title">${title}</div>
+      <div class="simple-bar-chart">
+        ${barsHTML}
+      </div>
+    </div>
+  `;
+}
+
+// Generate impact cards HTML
+function generateImpactCards(data, title) {
+  const cardsHTML = data.map(item => `
+    <div class="impact-card ${item.level}">
+      <div class="impact-icon">${item.icon}</div>
+      <div class="impact-label">${item.label}</div>
+      <div class="impact-level">${item.level.charAt(0).toUpperCase() + item.level.slice(1)}</div>
+    </div>
+  `).join('');
+  
+  return `
+    <div class="chart-container">
+      <div class="chart-title">${title}</div>
+      <div class="impact-grid">
+        ${cardsHTML}
+      </div>
+    </div>
+  `;
+}
+
+// Generate timeline HTML
+function generateTimeline(data, title) {
+  const stepsHTML = data.map(item => `
+    <div class="timeline-step">
+      <div class="timeline-emoji">${item.emoji}</div>
+      <div class="timeline-text">${item.text}</div>
+    </div>
+  `).join('');
+  
+  return `
+    <div class="chart-container">
+      <div class="chart-title">${title}</div>
+      <div class="progress-timeline">
+        ${stepsHTML}
+      </div>
+    </div>
+  `;
+}
+
+// Main function to enhance messages with charts
+function enhanceMessageWithCharts(messageDiv, content) {
+  const charts = detectChartableContent(content);
+  
+  charts.forEach(chart => {
+    let chartHTML = '';
+    
+    switch (chart.type) {
+      case 'factors':
+        chartHTML = generateBarChart(chart.data, chart.title);
+        break;
+      case 'impact':
+        chartHTML = generateImpactCards(chart.data, chart.title);
+        break;
+      case 'timeline':
+        chartHTML = generateTimeline(chart.data, chart.title);
+        break;
+    }
+    
+    if (chartHTML) {
+      // Add chart after message content
+      const chartDiv = document.createElement('div');
+      chartDiv.innerHTML = chartHTML;
+      messageDiv.appendChild(chartDiv.firstElementChild);
+    }
+  });
+}
+
+// Modify addEnhancedMessage to include chart generation
+const originalAddEnhancedMessage = addEnhancedMessage;
+addEnhancedMessage = function(sender, content, responseTime, tokenCount) {
+  const messageDiv = originalAddEnhancedMessage.call(this, sender, content, responseTime, tokenCount);
+  
+  // Add charts for assistant messages
+  if (sender === 'assistant' && messageDiv) {
+    setTimeout(() => {
+      enhanceMessageWithCharts(messageDiv, content);
+    }, 100); // Small delay to ensure message is rendered
+  }
+  
+  return messageDiv;
+};
