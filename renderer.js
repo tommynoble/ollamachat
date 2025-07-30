@@ -389,7 +389,7 @@ function setupEventListeners() {
       if (currentModel) {
         saveLastUsedModel(currentModel);
         // Remove "Please select a model first" message when model is selected
-        removeSystemMessage('Please select a model first');
+        removeSystemMessage('Please select a model first.');
       }
 
       updateHomeStats(); // Update home page when model changes
@@ -414,10 +414,24 @@ function setupEventListeners() {
   document.addEventListener('click', e => {
     if (e.target.classList.contains('suggestion-btn')) {
       const message = e.target.getAttribute('data-message');
-      if (messageInput) {
-        messageInput.value = message;
-        updateSendButton();
-        messageInput.focus();
+      const isPlaceholder = e.target.getAttribute('data-placeholder') === 'true';
+      
+      if (messageInput && message) {
+        if (isPlaceholder) {
+          // Set as placeholder text, don't send message
+          messageInput.placeholder = message;
+          messageInput.focus();
+        } else {
+          // Add the suggestion as a user message in the chat
+          addMessage(message, 'user');
+          
+          // Clear the input and send the message
+          messageInput.value = '';
+          updateSendButton();
+          
+          // Send the message automatically
+          sendMessage(message);
+        }
       }
     }
   });
@@ -489,8 +503,8 @@ function updateSendButton() {
 }
 
 // Enhanced Chat Functions with phi model optimizations
-async function sendMessage() {
-  const message = messageInput.value.trim();
+async function sendMessage(customMessage = null) {
+  const message = customMessage || messageInput.value.trim();
   const selectedModel = modelSelect.value;
 
   if (!message) return;
@@ -499,8 +513,10 @@ async function sendMessage() {
     return;
   }
 
-  // Add user message to chat
-  addMessage(message, 'user');
+  // Add user message to chat (only if not from suggestion - suggestions already add it)
+  if (!customMessage) {
+    addMessage(message, 'user');
+  }
   messageInput.value = '';
   autoResizeTextarea(); // Reset textarea height
 
@@ -524,7 +540,6 @@ async function sendMessage() {
                     <span class="typing-dot"></span>
                     <span class="typing-dot"></span>
                 </div>
-                <span class="thinking-text">Thinking...</span>
             </div>
         `;
     chatMessages.appendChild(typingDiv);
@@ -2330,25 +2345,39 @@ createInspectorHelper();
 // 📊 SMART CHART GENERATION SYSTEM
 // Auto-generates visualizations based on AI response content
 
-// Chart detection patterns
+// Enhanced chart detection patterns
 const CHART_PATTERNS = {
-  factors: /(\d+\.?\s*.*?(?:factor|cause|reason|element|aspect|component|issue|problem|challenge).*?)(?=\d+\.|$)/gim,
+  factors: /(\d+\.?\s*.*?(?:factor|cause|reason|element|aspect|component|issue|problem|challenge|step|approach|method|way|tip|strategy).*?)(?=\d+\.|$)/gim,
   numbered_list: /(\d+\.?\s*.+?)(?=\d+\.|$)/gm,
   solutions: /(?:solution|step|phase|stage|approach|strategy|intervention|method)\s*:?\s*(.+?)(?=\n|$)/gim,
-  progress: /(?:done|complete|finished|✅)|(?:progress|ongoing|current|🔄)|(?:pending|planned|future|⏳)/gim
-};
+  progress: /(?:done|complete|finished|✅)|(?:progress|ongoing|current|🔄)|(?:pending|planned|future|⏳)/gim,
+  demographics: /(?:age group|ethnicity|gender|population|demographic|category|group|type|class)/gim,
+  data_analysis: /(?:data|statistics|rates|percentages|numbers|figures|analysis|study|survey)/gim
+}
 
 // Detect if content should generate charts
 function detectChartableContent(content) {
   const charts = [];
   
-  // Detect numbered factors/causes
+  // Detect numbered factors/steps
   const factors = content.match(CHART_PATTERNS.factors);
   if (factors && factors.length >= 3) {
     charts.push({
       type: 'factors',
       data: parseFactors(factors),
-      title: '📊 Key Contributing Factors'
+      title: '📊 Key Steps/Factors'
+    });
+  }
+  
+  // Detect data analysis context (obesity, demographics, etc.)
+  const hasDataAnalysis = CHART_PATTERNS.data_analysis.test(content);
+  const hasDemographics = CHART_PATTERNS.demographics.test(content);
+  
+  if (hasDataAnalysis || hasDemographics) {
+    charts.push({
+      type: 'impact',
+      data: parseDataCategories(content),
+      title: '📈 Data Categories'
     });
   }
   
@@ -2388,11 +2417,42 @@ function parseFactors(factors) {
   });
 }
 
+// Parse data categories for obesity/demographics
+function parseDataCategories(content) {
+  const categories = [];
+  
+  // Check for obesity-related content
+  if (content.toLowerCase().includes('obes')) {
+    categories.push(
+      { name: 'Age Groups', emoji: '👥', level: 'high' },
+      { name: 'Demographics', emoji: '📊', level: 'high' },
+      { name: 'Health Data', emoji: '🏥', level: 'critical' }
+    );
+  }
+  
+  // Check for Accra-related content
+  if (content.toLowerCase().includes('accra')) {
+    categories.push(
+      { name: 'Population', emoji: '🏙️', level: 'high' },
+      { name: 'Economic', emoji: '💼', level: 'high' },
+      { name: 'Urban Dev', emoji: '🏗️', level: 'moderate' }
+    );
+  }
+  
+  // Default data categories
+  if (categories.length === 0) {
+    categories.push(
+      { name: 'Data Points', emoji: '📈', level: 'high' },
+      { name: 'Analysis', emoji: '🔍', level: 'moderate' },
+      { name: 'Insights', emoji: '💡', level: 'high' }
+    );
+  }
+  
+  return categories;
+}
+
 // Parse impact levels from content
 function parseImpactLevels(content) {
-  const impacts = [];
-  
-  // Common factor categories with emojis
   const categories = [
     { name: 'Socioeconomic', emoji: '💰', level: 'critical' },
     { name: 'Environment', emoji: '🌍', level: 'high' },
@@ -2412,9 +2472,9 @@ function parseImpactLevels(content) {
 // Parse timeline steps
 function parseTimelineSteps(content) {
   return [
-    { emoji: '✅', text: 'Policy Changes', status: 'done' },
-    { emoji: '🔄', text: 'Education Programs', status: 'progress' },
-    { emoji: '⏳', text: 'Community Access', status: 'pending' }
+    { emoji: '✅', text: 'Data Collection', status: 'done' },
+    { emoji: '🔄', text: 'Analysis', status: 'progress' },
+    { emoji: '⏳', text: 'Visualization', status: 'pending' }
   ];
 }
 

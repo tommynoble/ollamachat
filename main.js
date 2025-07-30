@@ -67,7 +67,7 @@ function createWindow() {
   });
 
   // Open DevTools in development
-  // mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools();
 }
 
 // App event listeners
