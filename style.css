@@ -314,6 +314,14 @@ body {
   box-shadow: 0 3px 12px rgba(79, 70, 229, 0.3);
 }
 
+.suggestion-btn.selected {
+  background: rgba(124, 58, 237, 0.6);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+  scale: 1.02;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
 /* Old responsive rules removed - now handled in comprehensive responsive system */
 
 /* Message Bubbles */

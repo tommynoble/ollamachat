@@ -99,10 +99,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Show initial status notification
   if (!isRunning) {
-    showNotification(
-      'Ollama is not running. Click the model dropdown for options to start it.',
-      'warning'
-    );
+    // Skip confusing popup - status will be handled by the UI state
   } else {
     // If running, we'll let the status checker determine if models are ready
     setTimeout(() => {
@@ -227,10 +224,7 @@ function showOllamaNotRunningState() {
         <option value="start-ollama">🚀 Click to start Ollama</option>
     `;
 
-  showNotification(
-    'Ollama is not running. Please start it with: ollama serve',
-    'warning'
-  );
+  // Skip confusing popup notification - the dropdown message is clear enough
 
   // Add event listener for the "start ollama" option
   modelSelect.onchange = function () {
@@ -415,6 +409,14 @@ function setupEventListeners() {
     if (e.target.classList.contains('suggestion-btn')) {
       const message = e.target.getAttribute('data-message');
       const isPlaceholder = e.target.getAttribute('data-placeholder') === 'true';
+      
+      // Remove previous selection from all suggestion buttons
+      document.querySelectorAll('.suggestion-btn').forEach(btn => {
+        btn.classList.remove('selected');
+      });
+      
+      // Mark this button as selected
+      e.target.classList.add('selected');
       
       if (messageInput && message) {
         if (isPlaceholder) {
@@ -2202,145 +2204,7 @@ function removeSystemMessage(content) {
   });
 }
 
-// =============================================================================
-// 🔍 INSPECTOR HELPER SYSTEM
-// =============================================================================
 
-let inspectorMode = false;
-let inspectorButton = null;
-
-// Create Inspector Helper Button
-function createInspectorHelper() {
-  if (inspectorButton) return; // Already exists
-
-  // Create floating inspector button
-  inspectorButton = document.createElement('button');
-  inspectorButton.innerHTML = '🔍 Inspector';
-  inspectorButton.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 10000;
-    background: #007AFF;
-    color: white;
-    border: none;
-    padding: 10px 15px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: bold;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
-    transition: all 0.2s ease;
-  `;
-
-  inspectorButton.addEventListener('click', toggleInspectorMode);
-  document.body.appendChild(inspectorButton);
-}
-
-// Toggle Inspector Mode
-function toggleInspectorMode() {
-  inspectorMode = !inspectorMode;
-  
-  if (inspectorMode) {
-    inspectorButton.innerHTML = '❌ Exit Inspector';
-    inspectorButton.style.background = '#FF3B30';
-    document.body.style.cursor = 'crosshair';
-    
-    // Add click listener for inspection
-    document.addEventListener('click', inspectElement, true);
-    
-    console.log('🔍 Inspector Mode: ON - Click any element to inspect it!');
-  } else {
-    inspectorButton.innerHTML = '🔍 Inspector';
-    inspectorButton.style.background = '#007AFF';
-    document.body.style.cursor = 'default';
-    
-    // Remove click listener
-    document.removeEventListener('click', inspectElement, true);
-    
-    console.log('❌ Inspector Mode: OFF');
-  }
-}
-
-// Inspect Element Function
-function inspectElement(event) {
-  if (!inspectorMode) return;
-  
-  event.preventDefault();
-  event.stopPropagation();
-  
-  const element = event.target;
-  const computedStyle = window.getComputedStyle(element);
-  
-  // Get element info
-  const elementInfo = {
-    tagName: element.tagName.toLowerCase(),
-    className: element.className || 'no-class',
-    id: element.id || 'no-id',
-    textContent: element.textContent?.slice(0, 100) || 'no-text'
-  };
-  
-  // Get key CSS properties
-  const cssInfo = {
-    background: computedStyle.background || computedStyle.backgroundColor,
-    color: computedStyle.color,
-    fontSize: computedStyle.fontSize,
-    padding: computedStyle.padding,
-    margin: computedStyle.margin,
-    borderRadius: computedStyle.borderRadius,
-    border: computedStyle.border,
-    display: computedStyle.display,
-    position: computedStyle.position,
-    width: computedStyle.width,
-    height: computedStyle.height
-  };
-  
-  // Create detailed message
-  const message = `
-🔍 ELEMENT INSPECTOR DETAILS:
-
-📋 ELEMENT INFO:
-• Tag: <${elementInfo.tagName}>
-• Class: "${elementInfo.className}"
-• ID: "${elementInfo.id}"
-• Text: "${elementInfo.textContent}"
-
-🎨 KEY CSS PROPERTIES:
-• Background: ${cssInfo.background}
-• Color: ${cssInfo.color}
-• Font Size: ${cssInfo.fontSize}
-• Padding: ${cssInfo.padding}
-• Margin: ${cssInfo.margin}
-• Border Radius: ${cssInfo.borderRadius}
-• Border: ${cssInfo.border}
-• Display: ${cssInfo.display}
-• Position: ${cssInfo.position}
-• Width: ${cssInfo.width}
-• Height: ${cssInfo.height}
-
-💡 TO MODIFY THIS ELEMENT:
-Copy this info and tell the AI assistant what you want to change!
-  `;
-  
-  // Show in both alert and console
-  alert(message);
-  console.log('🔍 INSPECTED ELEMENT:', elementInfo, cssInfo);
-  
-  // Briefly highlight the element
-  const originalOutline = element.style.outline;
-  element.style.outline = '3px solid #FF3B30';
-  setTimeout(() => {
-    element.style.outline = originalOutline;
-  }, 1000);
-}
-
-// Initialize Inspector Helper when page loads
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(createInspectorHelper, 1000); // Delay to ensure UI is loaded
-});
-
-// Also create when called directly (in case DOMContentLoaded already fired)
-createInspectorHelper();
 
 // 📊 SMART CHART GENERATION SYSTEM
 // Auto-generates visualizations based on AI response content

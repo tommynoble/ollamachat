@@ -897,15 +897,15 @@ import time
 
 try:
     # First check if server is responding
-    response = requests.get('http://localhost:11434/api/version', timeout=3)
+    response = requests.get('http://localhost:11434/api/version', timeout=2)
     if response.status_code != 200:
         print(json.dumps({"ready": False, "loading": False, "error": "Server not responding"}))
         exit()
     
     # Check if we can get models (this tells us if models are accessible)
-    models_response = requests.get('http://localhost:11434/api/tags', timeout=5)
+    models_response = requests.get('http://localhost:11434/api/tags', timeout=3)
     if models_response.status_code != 200:
-        print(json.dumps({"ready": False, "loading": True, "error": "Models loading"}))
+        print(json.dumps({"ready": False, "loading": False, "error": "Models not accessible"}))
         exit()
     
     models_data = models_response.json()
@@ -913,25 +913,15 @@ try:
         print(json.dumps({"ready": False, "loading": False, "error": "No models available"}))
         exit()
     
-    # Test if we can actually use a model for chat (quick test)
+    # If we get here, server is responding and models are available
+    # Consider system ready without heavy test chat
     first_model = models_data['models'][0]['name']
-    test_payload = {
-        "model": first_model,
-        "messages": [{"role": "user", "content": "test"}],
-        "stream": False
-    }
-    
-    # Quick test chat - if this works, models are ready
-    chat_response = requests.post('http://localhost:11434/api/chat', 
-                                 json=test_payload, timeout=10)
-    
-    if chat_response.status_code == 200:
-        print(json.dumps({"ready": True, "loading": False, "model": first_model}))
-    else:
-        print(json.dumps({"ready": False, "loading": True, "error": "Model loading"}))
+    print(json.dumps({"ready": True, "loading": False, "model": first_model}))
         
 except requests.exceptions.Timeout:
-    print(json.dumps({"ready": False, "loading": True, "error": "Model loading (timeout)"}))
+    print(json.dumps({"ready": False, "loading": False, "error": "Server timeout"}))
+except requests.exceptions.ConnectionError:
+    print(json.dumps({"ready": False, "loading": False, "error": "Server not running"}))
 except Exception as e:
     print(json.dumps({"ready": False, "loading": False, "error": str(e)}))
             `,
