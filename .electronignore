@@ -1,0 +1,53 @@
+# Development files
+.git/
+.github/
+.vscode/
+.DS_Store
+.env*
+.prettierrc
+.eslintrc.js
+vite.config.js
+nodemon.json
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Build artifacts
+dist/
+build/
+.cache/
+
+# Dependencies we don't need in production
+node_modules/@types/
+node_modules/@playwright/
+node_modules/playwright/
+node_modules/jest/
+node_modules/webpack/
+node_modules/semantic-release/
+node_modules/husky/
+node_modules/lint-staged/
+node_modules/npm-check-updates/
+
+# Test files
+**/*.test.js
+**/*.spec.js
+__tests__/
+test/
+
+# Large dev files
+*.log
+*.lock
+!package-lock.json
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Temporary files
+*.tmp
+*.temp
+.nyc_output/
+coverage/
