@@ -147,11 +147,11 @@ body {
   flex: 1;
   overflow: hidden;
   padding: 0 20px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  background: #ffffff;
   border-radius: 20px 20px 0 0;
   margin: 0 20px;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
-  position: relative;
+  /* box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05); */
+  /* position: relative; */
 }
 
 .chat-container::before {
@@ -276,7 +276,7 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
   justify-content: center;
-  margin-top: 20px;
+  margin-top: 40px;
   max-width: 1000px;
   margin-left: auto;
   margin-right: auto;
@@ -532,6 +532,7 @@ body {
   padding: 2px 0;
   z-index: 1;
   position: relative;
+  align-self: center;
 }
 
 .message-input::placeholder {
@@ -1781,18 +1782,17 @@ body {
 
 /* Chat Optimization Styles */
 .message.assistant {
-  background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%);
-  border-left: 4px solid #667eea;
+  background: linear-gradient(135deg, #f0f8ff 0%, #44536100 100%);
+  margin-left: 10px !important;
+  margin-top: 10px !important;
 }
 
 .message.user {
   background: linear-gradient(135deg, #f9f9f9 0%, #ffffff 100%);
-  border-left: 4px solid #28a745;
 }
 
 .message.typing {
   background: linear-gradient(135deg, #fff8e1 0%, #fff3c4 100%);
-  border-left: 4px solid #ffc107;
   opacity: 0.9;
 }
 
@@ -2862,7 +2862,6 @@ body {
   background: linear-gradient(135deg, 
     rgba(99, 102, 241, 0.08) 0%, 
     rgba(139, 92, 246, 0.08) 100%);
-  border-left: 4px solid var(--color-primary-500);
 }
 
 /* User Message Styling */
@@ -2870,7 +2869,6 @@ body {
   background: linear-gradient(135deg, 
     rgba(16, 185, 129, 0.08) 0%, 
     rgba(5, 150, 105, 0.08) 100%);
-  border-left: 4px solid var(--color-success-500);
   margin-left: auto;
   margin-right: 0;
   max-width: 85%;
@@ -2881,7 +2879,6 @@ body {
   background: linear-gradient(135deg, 
     rgba(245, 158, 11, 0.08) 0%, 
     rgba(217, 119, 6, 0.08) 100%);
-  border-left: 4px solid var(--color-warning-500);
   max-width: 90%;
   margin: 0 auto var(--space-lg) auto;
 }
@@ -2908,19 +2905,24 @@ body {
   width: 40px;
   height: 40px;
   border-radius: var(--border-radius-full);
-  background: var(--gradient-primary);
-  box-shadow: var(--shadow-md);
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   flex-shrink: 0;
 }
 
 .user-avatar {
-  background: var(--gradient-success);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .avatar-icon {
-  font-size: var(--text-lg);
+  font-size: 20px;
   line-height: 1;
   color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  filter: contrast(1.2) brightness(1.1);
 }
 
 /* Header Info */
@@ -2945,6 +2947,7 @@ body {
 /* Message Actions */
 .message-actions {
   display: flex;
+  align-items: center;
   gap: var(--space-xs);
   opacity: 0;
   transition: opacity var(--transition-smooth);
@@ -2960,13 +2963,14 @@ body {
   justify-content: center;
   width: 32px;
   height: 32px;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: var(--border-radius-md);
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--color-text-secondary);
+  background: rgba(255, 255, 255, 0.15);
+  color: #333333;
   cursor: pointer;
   transition: all var(--transition-smooth);
   backdrop-filter: blur(10px);
+  font-size: 14px;
 }
 
 .action-btn:hover {
@@ -3006,23 +3010,16 @@ body {
   color: var(--color-text-secondary);
 }
 
-/* Message Footer Modern - Simplified */
-.message-footer-modern {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  padding: var(--space-sm) var(--space-lg);
-  background: rgba(255, 255, 255, 0.02);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: var(--text-xs);
-  min-height: 32px;
-}
+/* Removed footer - tokens now inline with actions */
 
-/* Simple Token Count */
-.token-count-simple {
-  color: var(--color-text-secondary);
+/* Inline Token Count */
+.token-count-inline {
+  color: #666666;
   font-weight: var(--font-weight-medium);
-  opacity: 0.7;
+  opacity: 0.8;
+  font-size: 11px;
+  margin-left: var(--space-sm);
+  white-space: nowrap;
 }
 
 /* Removed unused quality indicator and response stats styles for cleaner footer */
@@ -3135,10 +3132,7 @@ body {
     font-size: var(--text-sm);
   }
 
-  .message-footer-modern {
-    justify-content: center;
-    padding: var(--space-xs) var(--space-md);
-  }
+  /* Footer removed - tokens now inline */
 
   .action-btn {
     width: 28px;
@@ -3173,5 +3167,159 @@ body {
     background: linear-gradient(135deg, 
       rgba(245, 158, 11, 0.12) 0%, 
       rgba(217, 119, 6, 0.12) 100%);
+  }
+}
+
+/* =============================================================================
+   📱 PHONE-STYLE MESSAGING SYSTEM (WhatsApp/iMessage Style)
+   ============================================================================= */
+
+/* Message Container */
+.message {
+  margin-bottom: var(--space-sm);
+  clear: both;
+}
+
+/* Assistant Message Container - margins added to existing rule above */
+
+/* Phone Message Bubble */
+.phone-message {
+  max-width: 70%;
+  margin-bottom: var(--space-xs);
+  border-radius: 18px;
+  overflow: hidden;
+  word-wrap: break-word;
+  position: relative;
+}
+
+/* Assistant Messages (Left Side) */
+.assistant-message {
+  background: #ffffff;
+  float: left;
+  clear: left;
+  margin-left: 0;
+  margin-right: auto;
+}
+
+/* User Messages (Right Side) */
+.user-message {
+  background: #007AFF;
+  color: white;
+  float: right;
+  clear: right;
+  margin-left: auto;
+  margin-right: 0;
+}
+
+/* System Messages (Center) */
+.system-message {
+  background: #E5E5EA;
+  margin: var(--space-md) auto;
+  max-width: 80%;
+  text-align: center;
+}
+
+/* Message Header */
+.message-header-phone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px 4px 12px;
+  font-size: 11px;
+  opacity: 0.7;
+  background: rgb(0 0 0 / 19%);
+}
+
+.user-message .message-header-phone {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Sender Name */
+.sender-name {
+  font-weight: 600;
+  font-size: 11px;
+}
+
+/* Message Time */
+.message-time {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+/* Message Actions (Phone Style) */
+.message-actions-phone {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.phone-message:hover .message-actions-phone {
+  opacity: 1;
+}
+
+.action-btn-phone {
+  background: none;
+  border: none;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.action-btn-phone:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.user-message .action-btn-phone:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Token Count (Phone Style) */
+.tokens-phone {
+  font-size: 9px;
+  opacity: 0.6;
+  margin-left: 4px;
+}
+
+/* Message Text Content */
+.message-text {
+  padding: 8px 12px 10px 12px;
+  line-height: 1.4;
+  font-size: 14px;
+  color: #000000;
+}
+
+.user-message .message-text {
+  color: #ffffff;
+}
+
+.system-message .message-text {
+  color: #666666;
+  font-size: 13px;
+}
+
+/* Clear floats after messages */
+.message::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .phone-message {
+    max-width: 85%;
+  }
+  
+  .message-text {
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
+  .message-header-phone {
+    padding: 4px 10px 2px 10px;
   }
 }
