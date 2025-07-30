@@ -388,6 +388,8 @@ function setupEventListeners() {
       // Save the last used model
       if (currentModel) {
         saveLastUsedModel(currentModel);
+        // Remove "Please select a model first" message when model is selected
+        removeSystemMessage('Please select a model first');
       }
 
       updateHomeStats(); // Update home page when model changes
@@ -701,61 +703,27 @@ function addEnhancedMessage(content, sender = 'user', metadata = {}) {
     const modelName = metadata.model || 'AI';
 
     messageDiv.innerHTML = `
-      <div class="message-bubble assistant-bubble">
-        <!-- Model Header with Avatar -->
-        <div class="message-header-modern">
-          <div class="model-avatar">
-            <div class="avatar-icon">🤖</div>
-          </div>
-          <div class="header-info">
-            <div class="model-name">${modelName}</div>
-            <div class="timestamp-info">${timestamp}${responseTimeText}</div>
-          </div>
-          <div class="message-actions">
-            <button class="action-btn copy-btn" onclick="copyMessage(this)" title="Copy message">
-              <span class="btn-icon">📋</span>
-            </button>
-            <button class="action-btn like-btn" onclick="likeMessage(this)" title="Good response">
-              <span class="btn-icon">👍</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Content Area -->
-        <div class="message-content-modern">
-          ${formattedContent}
-        </div>
-
-        <!-- Footer with Metadata -->
-        <div class="message-footer-modern">
-          ${tokenInfo ? `<span class="token-count-simple">${tokenInfo}</span>` : ''}
-        </div>
+      <div class="message-metadata">
+        <button class="copy-btn" onclick="copyMessage(this)" title="Copy message">📋</button>
+        <button class="copy-btn" onclick="likeMessage(this)" title="Like message">👍</button>
+        ${tokenInfo ? `<span class="token-count">${tokenInfo}</span>` : ''}
+      </div>
+      <div class="message-content">
+        ${formattedContent}
       </div>
     `;
   } else if (sender === 'user') {
+    // User messages without header - clean bubble style
     messageDiv.innerHTML = `
-      <div class="message-bubble user-bubble">
-        <div class="message-header-modern user-header">
-          <div class="user-avatar">
-            <div class="avatar-icon">👤</div>
-          </div>
-          <div class="header-info">
-            <div class="user-name">You</div>
-            <div class="timestamp-info">${timestamp}</div>
-          </div>
-        </div>
-        <div class="message-content-modern user-content">
-          ${formattedContent}
-        </div>
+      <div class="message-content">
+        ${formattedContent}
       </div>
     `;
   } else {
-    // Fallback for other message types
+    // System and other message types
     messageDiv.innerHTML = `
-      <div class="message-bubble system-bubble">
-        <div class="message-content-modern system-content">
-          ${formattedContent}
-        </div>
+      <div class="message-content">
+        ${formattedContent}
       </div>
     `;
   }
@@ -766,13 +734,13 @@ function addEnhancedMessage(content, sender = 'user', metadata = {}) {
 
 // 🎭 Message Actions
 function copyMessage(button) {
-  const messageContent = button.closest('.message-bubble').querySelector('.message-content-modern').innerText;
+  const messageContent = button.closest('.message').querySelector('.message-content').innerText;
   navigator.clipboard.writeText(messageContent).then(() => {
     // Visual feedback
-    const originalIcon = button.querySelector('.btn-icon');
-    originalIcon.textContent = '✅';
+    const originalText = button.textContent;
+    button.textContent = '✅';
     setTimeout(() => {
-      originalIcon.textContent = '📋';
+      button.textContent = originalText;
     }, 1500);
     
     showNotification('Message copied to clipboard!', 'success');
@@ -782,13 +750,12 @@ function copyMessage(button) {
 }
 
 function likeMessage(button) {
-  const icon = button.querySelector('.btn-icon');
-  if (icon.textContent === '👍') {
-    icon.textContent = '👍✨';
+  if (button.textContent === '👍') {
+    button.textContent = '👍✨';
     button.classList.add('liked');
     showNotification('Thanks for the feedback!', 'success');
   } else {
-    icon.textContent = '👍';
+    button.textContent = '👍';
     button.classList.remove('liked');
   }
 }
@@ -881,7 +848,13 @@ function addMessage(content, sender = 'user') {
                 ${formatMessage(content)}
             </div>
         `;
+  } else if (sender === 'user') {
+    // User messages without header
+    messageDiv.innerHTML = `
+            <div class="message-content">${formatMessage(content)}</div>
+        `;
   } else {
+    // Non-user, non-system messages (like assistant fallback)
     const timestamp = new Date().toLocaleTimeString([], {
       hour: '2-digit',
       minute: '2-digit',
@@ -2200,3 +2173,156 @@ async function downloadRecommendedModel() {
     showNotification(`❌ Download failed: ${error.message}`, 'error');
   }
 }
+
+// Function to remove specific system messages
+function removeSystemMessage(content) {
+  const chatMessages = document.getElementById('chat-messages');
+  const messages = chatMessages.querySelectorAll('.message.system');
+  
+  messages.forEach(message => {
+    const messageContent = message.querySelector('.message-content');
+    if (messageContent && messageContent.textContent.includes(content)) {
+      message.remove();
+    }
+  });
+}
+
+// =============================================================================
+// 🔍 INSPECTOR HELPER SYSTEM
+// =============================================================================
+
+let inspectorMode = false;
+let inspectorButton = null;
+
+// Create Inspector Helper Button
+function createInspectorHelper() {
+  if (inspectorButton) return; // Already exists
+
+  // Create floating inspector button
+  inspectorButton = document.createElement('button');
+  inspectorButton.innerHTML = '🔍 Inspector';
+  inspectorButton.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    background: #007AFF;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+    transition: all 0.2s ease;
+  `;
+
+  inspectorButton.addEventListener('click', toggleInspectorMode);
+  document.body.appendChild(inspectorButton);
+}
+
+// Toggle Inspector Mode
+function toggleInspectorMode() {
+  inspectorMode = !inspectorMode;
+  
+  if (inspectorMode) {
+    inspectorButton.innerHTML = '❌ Exit Inspector';
+    inspectorButton.style.background = '#FF3B30';
+    document.body.style.cursor = 'crosshair';
+    
+    // Add click listener for inspection
+    document.addEventListener('click', inspectElement, true);
+    
+    console.log('🔍 Inspector Mode: ON - Click any element to inspect it!');
+  } else {
+    inspectorButton.innerHTML = '🔍 Inspector';
+    inspectorButton.style.background = '#007AFF';
+    document.body.style.cursor = 'default';
+    
+    // Remove click listener
+    document.removeEventListener('click', inspectElement, true);
+    
+    console.log('❌ Inspector Mode: OFF');
+  }
+}
+
+// Inspect Element Function
+function inspectElement(event) {
+  if (!inspectorMode) return;
+  
+  event.preventDefault();
+  event.stopPropagation();
+  
+  const element = event.target;
+  const computedStyle = window.getComputedStyle(element);
+  
+  // Get element info
+  const elementInfo = {
+    tagName: element.tagName.toLowerCase(),
+    className: element.className || 'no-class',
+    id: element.id || 'no-id',
+    textContent: element.textContent?.slice(0, 100) || 'no-text'
+  };
+  
+  // Get key CSS properties
+  const cssInfo = {
+    background: computedStyle.background || computedStyle.backgroundColor,
+    color: computedStyle.color,
+    fontSize: computedStyle.fontSize,
+    padding: computedStyle.padding,
+    margin: computedStyle.margin,
+    borderRadius: computedStyle.borderRadius,
+    border: computedStyle.border,
+    display: computedStyle.display,
+    position: computedStyle.position,
+    width: computedStyle.width,
+    height: computedStyle.height
+  };
+  
+  // Create detailed message
+  const message = `
+🔍 ELEMENT INSPECTOR DETAILS:
+
+📋 ELEMENT INFO:
+• Tag: <${elementInfo.tagName}>
+• Class: "${elementInfo.className}"
+• ID: "${elementInfo.id}"
+• Text: "${elementInfo.textContent}"
+
+🎨 KEY CSS PROPERTIES:
+• Background: ${cssInfo.background}
+• Color: ${cssInfo.color}
+• Font Size: ${cssInfo.fontSize}
+• Padding: ${cssInfo.padding}
+• Margin: ${cssInfo.margin}
+• Border Radius: ${cssInfo.borderRadius}
+• Border: ${cssInfo.border}
+• Display: ${cssInfo.display}
+• Position: ${cssInfo.position}
+• Width: ${cssInfo.width}
+• Height: ${cssInfo.height}
+
+💡 TO MODIFY THIS ELEMENT:
+Copy this info and tell the AI assistant what you want to change!
+  `;
+  
+  // Show in both alert and console
+  alert(message);
+  console.log('🔍 INSPECTED ELEMENT:', elementInfo, cssInfo);
+  
+  // Briefly highlight the element
+  const originalOutline = element.style.outline;
+  element.style.outline = '3px solid #FF3B30';
+  setTimeout(() => {
+    element.style.outline = originalOutline;
+  }, 1000);
+}
+
+// Initialize Inspector Helper when page loads
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(createInspectorHelper, 1000); // Delay to ensure UI is loaded
+});
+
+// Also create when called directly (in case DOMContentLoaded already fired)
+createInspectorHelper();

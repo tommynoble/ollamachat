@@ -174,10 +174,14 @@ body {
   border-radius: 18px 18px 0 0;
   margin-top: 10px;
   backdrop-filter: blur(10px);
+  /* Hide scrollbar */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
 }
 
 .chat-messages::-webkit-scrollbar {
-  width: 8px;
+  width: 0px; /* Hide scrollbar for Chrome/Safari */
+  display: none;
 }
 
 .chat-messages::-webkit-scrollbar-track {
@@ -286,7 +290,7 @@ body {
   padding: 14px 18px;
   border: none;
   border-radius: 25px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: #4905332e;
   color: white;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -1782,13 +1786,26 @@ body {
 
 /* Chat Optimization Styles */
 .message.assistant {
-  background: linear-gradient(135deg, #f0f8ff 0%, #44536100 100%);
   margin-left: 10px !important;
   margin-top: 10px !important;
 }
 
 .message.user {
-  background: linear-gradient(135deg, #f9f9f9 0%, #ffffff 100%);
+  justify-content: flex-end;
+  margin-left: 10px !important;
+  margin-top: 10px !important;
+}
+
+.message.user .message-content {
+  max-width: 70%;
+  padding: 16px 20px;
+  border-radius: 18px;
+  position: relative;
+  word-wrap: break-word;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: white;
+  border-bottom-right-radius: 4px;
 }
 
 .message.typing {
@@ -1886,7 +1903,7 @@ body {
   padding: 14px 18px;
   border: none;
   border-radius: 25px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: #4905332e;
   color: white;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -2344,16 +2361,17 @@ body {
 
 .learning-chat .message-metadata {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
   font-size: 11px;
   color: #94a3b8;
-}
-
-.learning-chat .copy-btn {
   position: absolute;
   top: 8px;
   right: 8px;
+}
+
+.learning-chat .copy-btn {
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid #e2e8f0;
   border-radius: 6px;
@@ -2478,19 +2496,21 @@ body {
 .learning-chat .typing-animation {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 16px 20px;
+  gap: 3px;
+  padding: 8px 12px;
   background: white;
   border: 1px solid #e2e8f0;
-  border-radius: 18px;
+  border-radius: 12px;
   border-bottom-left-radius: 4px;
-  margin-bottom: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  margin-bottom: 8px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+  font-size: 12px;
+  max-width: 80px;
 }
 
 .learning-chat .typing-dot {
-  width: 8px;
-  height: 8px;
+  width: 5px;
+  height: 5px;
   background: #7c3aed;
   border-radius: 50%;
   animation: typing-pulse 1.4s infinite ease-in-out;
@@ -3322,4 +3342,15 @@ body {
   .message-header-phone {
     padding: 4px 10px 2px 10px;
   }
+}
+
+/* Removed message-wrapper - now using learning-chat structure */
+
+.learning-chat .token-count {
+  font-size: 10px;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
 }
