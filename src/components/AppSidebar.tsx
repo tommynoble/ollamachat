@@ -4,8 +4,6 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
-  SidebarMenuItem,
-  SidebarMenuButton,
 } from "./ui/sidebar"
 import { MessageCircle, BookOpen, Code2, Settings, BarChart3, Zap } from "lucide-react"
 
@@ -37,16 +35,19 @@ export function AppSidebar({ currentPage = "chat", onNavigate }: AppSidebarProps
             {navItems.map((item) => {
               const Icon = item.icon
               return (
-                <SidebarMenuItem key={item.page}>
-                  <SidebarMenuButton
+                <div key={item.page}>
+                  <button
                     onClick={() => onNavigate?.(item.page)}
-                    isActive={currentPage === item.page}
-                    className="gap-2"
+                    className={`w-full flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                      currentPage === item.page
+                        ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                        : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                    }`}
                   >
                     <Icon className="w-4 h-4" />
                     <span>{item.label}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                  </button>
+                </div>
               )
             })}
           </SidebarGroupContent>

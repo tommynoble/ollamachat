@@ -7,7 +7,7 @@ import LearningPage from './pages/LearningPage'
 import AnalyzerPage from './pages/AnalyzerPage'
 import CoderPage from './pages/CoderPage'
 import SettingsPage from './pages/SettingsPage'
-import { MessageCircle, Moon, Sun } from 'lucide-react'
+import { MessageCircle, Moon, Sun, BarChart3, BookOpen, Zap, Code2, Settings } from 'lucide-react'
 import { Button } from './components/ui/button'
 
 let ipcRenderer: any = null
@@ -91,45 +91,74 @@ export default function App() {
     }
   }
 
+  const PageHeader = ({ title, icon: Icon }: { title: string; icon: any }) => (
+    <div className="border-b border-border bg-card p-4 flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <Icon className="w-6 h-6" />
+        <h1 className="text-xl font-semibold">{title}</h1>
+      </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => setIsDarkMode(!isDarkMode)}
+        className="rounded-full"
+      >
+        {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+      </Button>
+    </div>
+  )
+
   const renderPage = () => {
     switch (currentPage) {
       case 'chat':
         return (
           <>
-            <div className="border-b border-border bg-card p-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <MessageCircle className="w-6 h-6" />
-                <h1 className="text-xl font-semibold">Ollama Chat</h1>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="text-sm text-muted-foreground">
-                  Model: <span className="font-medium text-foreground">{currentModel}</span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsDarkMode(!isDarkMode)}
-                  className="rounded-full"
-                >
-                  {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                </Button>
-              </div>
-            </div>
+            <PageHeader title="Ollama Chat" icon={MessageCircle} />
             <ChatWindow messages={messages} onSendMessage={handleSendMessage} isLoading={isLoading} />
           </>
         )
       case 'models':
-        return <ModelsPage />
+        return (
+          <>
+            <PageHeader title="Model Management" icon={BarChart3} />
+            <ModelsPage />
+          </>
+        )
       case 'learning':
-        return <LearningPage />
+        return (
+          <>
+            <PageHeader title="AI Learning Center" icon={BookOpen} />
+            <LearningPage />
+          </>
+        )
       case 'analyzer':
-        return <AnalyzerPage />
+        return (
+          <>
+            <PageHeader title="Document Analysis" icon={Zap} />
+            <AnalyzerPage />
+          </>
+        )
       case 'coder':
-        return <CoderPage />
+        return (
+          <>
+            <PageHeader title="Code Assistant" icon={Code2} />
+            <CoderPage />
+          </>
+        )
       case 'settings':
-        return <SettingsPage />
+        return (
+          <>
+            <PageHeader title="Settings" icon={Settings} />
+            <SettingsPage />
+          </>
+        )
       default:
-        return <ChatWindow messages={messages} onSendMessage={handleSendMessage} isLoading={isLoading} />
+        return (
+          <>
+            <PageHeader title="Ollama Chat" icon={MessageCircle} />
+            <ChatWindow messages={messages} onSendMessage={handleSendMessage} isLoading={isLoading} />
+          </>
+        )
     }
   }
 
