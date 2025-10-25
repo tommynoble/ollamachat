@@ -6,7 +6,8 @@ import LearningPage from './pages/LearningPage'
 import AnalyzerPage from './pages/AnalyzerPage'
 import CoderPage from './pages/CoderPage'
 import SettingsPage from './pages/SettingsPage'
-import { MessageCircle } from 'lucide-react'
+import { MessageCircle, Moon, Sun } from 'lucide-react'
+import { Button } from './components/ui/button'
 
 let ipcRenderer: any = null
 
@@ -25,6 +26,25 @@ export default function App() {
   const [messages, setMessages] = useState<Array<{ role: string; content: string }>>([])
   const [currentModel, setCurrentModel] = useState('llama2')
   const [isLoading, setIsLoading] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Load theme preference from localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('theme')
+      return saved ? saved === 'dark' : false
+    }
+    return false
+  })
+
+  useEffect(() => {
+    // Apply theme to document
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+    // Save preference
+    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light')
+  }, [isDarkMode])
 
   useEffect(() => {
     // Load available models on startup
@@ -81,8 +101,18 @@ export default function App() {
                 <MessageCircle className="w-6 h-6" />
                 <h1 className="text-xl font-semibold">Ollama Chat</h1>
               </div>
-              <div className="text-sm text-muted-foreground">
-                Model: <span className="font-medium text-foreground">{currentModel}</span>
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-muted-foreground">
+                  Model: <span className="font-medium text-foreground">{currentModel}</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsDarkMode(!isDarkMode)}
+                  className="rounded-full"
+                >
+                  {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                </Button>
               </div>
             </div>
             <ChatWindow messages={messages} onSendMessage={handleSendMessage} isLoading={isLoading} />
