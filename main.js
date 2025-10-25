@@ -36,9 +36,9 @@ function createWindow() {
     width: 1200,
     height: 800,
     webPreferences: {
-      nodeIntegration: true,
+      nodeIntegration: false,
       contextIsolation: false,
-      enableRemoteModule: true,
+      enableRemoteModule: false,
     },
     titleBarStyle: 'default',
     show: false, // Don't show until ready
@@ -70,8 +70,14 @@ function createWindow() {
     }
   });
 
-  // Open DevTools in development
-  mainWindow.webContents.openDevTools();
+  // Log any errors
+  mainWindow.webContents.on('crashed', () => {
+    console.error('Renderer process crashed');
+  });
+
+  mainWindow.webContents.on('render-process-gone', (event, details) => {
+    console.error('Render process gone:', details);
+  });
 }
 
 // App event listeners

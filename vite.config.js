@@ -1,10 +1,19 @@
 import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
 
 export default defineConfig({
   root: '.',
   publicDir: 'assets',
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   build: {
     outDir: 'dist',
+    emptyOutDir: true,
     rollupOptions: {
       input: {
         main: 'index.html',
@@ -12,8 +21,8 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
-    host: true, // Allow network access for mobile development
-    open: false, // Don't auto-open browser (we're using Electron)
+    port: 5173,
+    host: true,
+    open: false,
   },
 });
