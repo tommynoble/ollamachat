@@ -19,11 +19,11 @@
           </div>
         </div>
         <div class="nav-menu">
-          <button class="nav-btn" data-view="home">🏠 Home</button>
-          <button class="nav-btn" data-view="chat">💬 Chat</button>
-          <button class="nav-btn" data-view="learning">🎓 Learning</button>
-          <button class="nav-btn" data-view="models">📚 Models</button>
-          <button class="nav-btn" data-view="settings">⚙️ Settings</button>
+          <button class="nav-btn" data-view="home" onclick="switchToView('home')">🏠 Home</button>
+          <button class="nav-btn" data-view="chat" onclick="switchToView('chat')">💬 Chat</button>
+          <button class="nav-btn" data-view="learning" onclick="switchToView('learning')">🎓 Learning</button>
+          <button class="nav-btn" data-view="models" onclick="switchToView('models')">📚 Models</button>
+          <button class="nav-btn" data-view="settings" onclick="switchToView('settings')">⚙️ Settings</button>
         </div>
       </nav>
 
@@ -35,7 +35,7 @@
             <p>Your AI model management and interaction platform</p>
 
             <div class="feature-grid">
-              <div class="feature-card" data-view="chat">
+              <div class="feature-card" data-view="chat" onclick="switchToView('chat')">
                 <div class="feature-icon">💬</div>
                 <h3>AI Chat</h3>
                 <p>
@@ -44,7 +44,7 @@
                 </p>
               </div>
 
-              <div class="feature-card" data-view="learning">
+              <div class="feature-card" data-view="learning" onclick="switchToView('learning')">
                 <div class="feature-icon">🎓</div>
                 <h3>AI Learning</h3>
                 <p>
@@ -53,7 +53,7 @@
                 </p>
               </div>
 
-              <div class="feature-card" data-view="models">
+              <div class="feature-card" data-view="models" onclick="switchToView('models')">
                 <div class="feature-icon">🤖</div>
                 <h3>Model Manager</h3>
                 <p>

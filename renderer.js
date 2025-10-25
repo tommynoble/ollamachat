@@ -80,6 +80,7 @@ async function checkExistingExternalDriveConfig() {
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', async () => {
+  console.log('DOMContentLoaded fired!');
   setupEventListeners();
 
   // Check Ollama status first
@@ -1719,36 +1720,49 @@ async function updateStorageLocationDisplay() {
 
 // Enhanced Navigation System
 function setupNavigation() {
+  console.log('Setting up navigation...');
+  
   // Navigation buttons
   const navButtons = document.querySelectorAll('.nav-btn');
+  console.log('Found nav buttons:', navButtons.length);
   navButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       const viewName = btn.dataset.view;
+      console.log('Switching to view:', viewName);
       switchToView(viewName);
     });
   });
 
   // Feature cards navigation
   const featureCards = document.querySelectorAll('.feature-card[data-view]');
+  console.log('Found feature cards:', featureCards.length);
   featureCards.forEach(card => {
     card.addEventListener('click', () => {
       const viewName = card.dataset.view;
+      console.log('Switching to view from card:', viewName);
       switchToView(viewName);
     });
   });
 }
 
 function switchToView(viewName) {
+  console.log('switchToView called with:', viewName);
+  
   // Hide all views
   const views = document.querySelectorAll('.view');
+  console.log('Total views found:', views.length);
   views.forEach(view => {
     view.classList.remove('active');
   });
 
   // Show target view
   const targetView = document.getElementById(`${viewName}-view`);
+  console.log('Target view element:', targetView);
   if (targetView) {
     targetView.classList.add('active');
+    console.log('Added active class to:', viewName + '-view');
+  } else {
+    console.error('Could not find view:', viewName + '-view');
   }
 
   // Update navigation buttons
