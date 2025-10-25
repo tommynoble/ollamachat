@@ -50,8 +50,9 @@ function createWindow() {
   const isDev = process.env.NODE_ENV === 'development';
   
   if (isDev) {
-    // In development, load from Vite dev server (try common ports)
-    mainWindow.loadURL('http://localhost:5175');
+    // In development, load from Vite dev server
+    // Note: Vite will use the first available port starting from 5173
+    mainWindow.loadURL('http://localhost:5176');
   } else {
     // In production, load from built React files
     mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
