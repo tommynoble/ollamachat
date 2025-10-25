@@ -1,17 +1,49 @@
-import { useState } from 'react'
-import { Button } from './components/ui/button'
+import { useState, useEffect } from 'react'
 import ChatWindow from './components/ChatWindow'
 import Sidebar from './components/Sidebar'
 import { MessageCircle } from 'lucide-react'
+
+const { ipcRenderer } = window.require('electron')
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [messages, setMessages] = useState<Array<{ role: string; content: string }>>([])
   const [currentModel, setCurrentModel] = useState('llama2')
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleSendMessage = (message: string) => {
+  useEffect(() => {
+    // Load available models on startup
+    loadModels()
+  }, [])
+
+  const loadModels = async () => {
+    try {
+      const result = await ipcRenderer.invoke('get-models')
+      if (result.success && result.models.length > 0) {
+        setCurrentModel(result.models[0])
+      }
+    } catch (error) {
+      console.error('Failed to load models:', error)
+    }
+  }
+
+  const handleSendMessage = async (message: string) => {
     setMessages([...messages, { role: 'user', content: message }])
-    // TODO: Send to Ollama API
+    setIsLoading(true)
+
+    try {
+      const result = await ipcRenderer.invoke('chat-message', message, currentModel)
+      if (result.success) {
+        setMessages(prev => [...prev, { role: 'assistant', content: result.response }])
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${result.error}` }])
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error)
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Error communicating with Ollama' }])
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -33,7 +65,7 @@ export default function App() {
         </div>
 
         {/* Chat Window */}
-        <ChatWindow messages={messages} onSendMessage={handleSendMessage} />
+        <ChatWindow messages={messages} onSendMessage={handleSendMessage} isLoading={isLoading} />
       </div>
     </div>
   )

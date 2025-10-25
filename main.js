@@ -46,8 +46,16 @@ function createWindow() {
 
 
 
-  // Load the HTML file
-  mainWindow.loadFile('index.html');
+  // Load React app - use Vite dev server in development, built files in production
+  const isDev = process.env.NODE_ENV === 'development';
+  
+  if (isDev) {
+    // In development, load from Vite dev server
+    mainWindow.loadURL('http://localhost:5173');
+  } else {
+    // In production, load from built React files
+    mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
+  }
 
   // Show window when ready
   mainWindow.once('ready-to-show', () => {

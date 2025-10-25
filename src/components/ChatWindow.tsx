@@ -10,11 +10,11 @@ interface Message {
 interface ChatWindowProps {
   messages: Message[]
   onSendMessage: (message: string) => void
+  isLoading?: boolean
 }
 
-export default function ChatWindow({ messages, onSendMessage }: ChatWindowProps) {
+export default function ChatWindow({ messages, onSendMessage, isLoading = false }: ChatWindowProps) {
   const [input, setInput] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
