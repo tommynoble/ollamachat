@@ -7,7 +7,8 @@ import LearningPage from './pages/LearningPage'
 import AnalyzerPage from './pages/AnalyzerPage'
 import CoderPage from './pages/CoderPage'
 import SettingsPage from './pages/SettingsPage'
-import { MessageCircle, Moon, Sun, BarChart3, BookOpen, Zap, Code2, Settings } from 'lucide-react'
+import ComparisonPage from './pages/ComparisonPage'
+import { MessageCircle, Moon, Sun, BarChart3, BookOpen, Zap, Code2, Settings, GitCompare } from 'lucide-react'
 import { Button } from './components/ui/button'
 
 let ipcRenderer: any = null
@@ -115,6 +116,13 @@ export default function App() {
           <>
             <PageHeader title="Ollama Chat" icon={MessageCircle} />
             <ChatWindow messages={messages} onSendMessage={handleSendMessage} isLoading={isLoading} />
+          </>
+        )
+      case 'comparison':
+        return (
+          <>
+            <PageHeader title="Model Comparison" icon={GitCompare} />
+            <ComparisonPage />
           </>
         )
       case 'models':

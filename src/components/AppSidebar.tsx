@@ -5,7 +5,7 @@ import {
   SidebarGroupLabel,
   SidebarGroupContent,
 } from "./ui/sidebar"
-import { MessageCircle, BookOpen, Code2, Settings, BarChart3, Zap } from "lucide-react"
+import { MessageCircle, BookOpen, Code2, Settings, BarChart3, Zap, GitCompare } from "lucide-react"
 
 interface AppSidebarProps {
   currentPage?: string
@@ -15,6 +15,7 @@ interface AppSidebarProps {
 export function AppSidebar({ currentPage = "chat", onNavigate }: AppSidebarProps) {
   const navItems = [
     { label: "Chat", icon: MessageCircle, page: "chat" },
+    { label: "Compare", icon: GitCompare, page: "comparison" },
     { label: "Models", icon: BarChart3, page: "models" },
     { label: "Learning", icon: BookOpen, page: "learning" },
     { label: "Analyzer", icon: Zap, page: "analyzer" },
