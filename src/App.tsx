@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import ChatWindow from './components/ChatWindow'
-import Sidebar from './components/Sidebar'
+import { SidebarProvider } from './components/ui/sidebar'
+import { AppSidebar } from './components/AppSidebar'
 import ModelsPage from './pages/ModelsPage'
 import LearningPage from './pages/LearningPage'
 import AnalyzerPage from './pages/AnalyzerPage'
@@ -21,7 +22,6 @@ if (typeof window !== 'undefined' && (window as any).require) {
 }
 
 export default function App() {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [currentPage, setCurrentPage] = useState('chat')
   const [messages, setMessages] = useState<Array<{ role: string; content: string }>>([])
   const [currentModel, setCurrentModel] = useState('llama2')
@@ -134,14 +134,16 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} onNavigate={setCurrentPage} />
+    <SidebarProvider>
+      <div className="flex h-screen w-full bg-background">
+        {/* Sidebar */}
+        <AppSidebar currentPage={currentPage} onNavigate={setCurrentPage} />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col">
-        {renderPage()}
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {renderPage()}
+        </div>
       </div>
-    </div>
+    </SidebarProvider>
   )
 }
