@@ -27,12 +27,12 @@ export default function App() {
   const [currentModel, setCurrentModel] = useState('llama2')
   const [isLoading, setIsLoading] = useState(false)
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    // Load theme preference from localStorage
+    // Load theme preference from localStorage, default to dark
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('theme')
-      return saved ? saved === 'dark' : false
+      return saved ? saved === 'dark' : true
     }
-    return false
+    return true
   })
 
   useEffect(() => {
