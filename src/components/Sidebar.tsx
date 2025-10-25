@@ -4,9 +4,19 @@ import { Menu, Plus, Settings, RotateCcw } from 'lucide-react'
 interface SidebarProps {
   isOpen: boolean
   onToggle: () => void
+  onNavigate?: (page: string) => void
 }
 
-export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
+export default function Sidebar({ isOpen, onToggle, onNavigate }: SidebarProps) {
+  const navItems = [
+    { label: 'Chat', icon: '💬', page: 'chat' },
+    { label: 'Models', icon: '📚', page: 'models' },
+    { label: 'Learning', icon: '🎓', page: 'learning' },
+    { label: 'Analyzer', icon: '📄', page: 'analyzer' },
+    { label: 'Coder', icon: '💻', page: 'coder' },
+    { label: 'Settings', icon: '⚙️', page: 'settings' },
+  ]
+
   return (
     <>
       {/* Mobile Toggle */}
@@ -32,15 +42,22 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
           </Button>
         </div>
 
-        {/* Chat History */}
+        {/* Navigation */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-            Recent Chats
+            Navigation
           </div>
-          {/* Placeholder for chat history */}
-          <div className="text-sm text-muted-foreground text-center py-8">
-            No chats yet
-          </div>
+          {navItems.map(item => (
+            <Button
+              key={item.page}
+              variant="ghost"
+              className="w-full justify-start gap-2"
+              onClick={() => onNavigate?.(item.page)}
+            >
+              <span>{item.icon}</span>
+              {item.label}
+            </Button>
+          ))}
         </div>
 
         {/* Footer */}
@@ -48,10 +65,6 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
           <Button variant="ghost" className="w-full justify-start gap-2">
             <RotateCcw className="w-4 h-4" />
             Clear History
-          </Button>
-          <Button variant="ghost" className="w-full justify-start gap-2">
-            <Settings className="w-4 h-4" />
-            Settings
           </Button>
         </div>
       </div>

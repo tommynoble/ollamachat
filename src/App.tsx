@@ -1,12 +1,27 @@
 import { useState, useEffect } from 'react'
 import ChatWindow from './components/ChatWindow'
 import Sidebar from './components/Sidebar'
+import ModelsPage from './pages/ModelsPage'
+import LearningPage from './pages/LearningPage'
+import AnalyzerPage from './pages/AnalyzerPage'
+import CoderPage from './pages/CoderPage'
+import SettingsPage from './pages/SettingsPage'
 import { MessageCircle } from 'lucide-react'
 
-const { ipcRenderer } = window.require('electron')
+let ipcRenderer: any = null
+
+if (typeof window !== 'undefined' && (window as any).require) {
+  try {
+    const electron = (window as any).require('electron')
+    ipcRenderer = electron.ipcRenderer
+  } catch (error) {
+    console.error('Failed to load electron IPC:', error)
+  }
+}
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [currentPage, setCurrentPage] = useState('chat')
   const [messages, setMessages] = useState<Array<{ role: string; content: string }>>([])
   const [currentModel, setCurrentModel] = useState('llama2')
   const [isLoading, setIsLoading] = useState(false)
@@ -17,6 +32,10 @@ export default function App() {
   }, [])
 
   const loadModels = async () => {
+    if (!ipcRenderer) {
+      console.warn('IPC not available, using default model')
+      return
+    }
     try {
       const result = await ipcRenderer.invoke('get-models')
       if (result.success && result.models.length > 0) {
@@ -30,6 +49,12 @@ export default function App() {
   const handleSendMessage = async (message: string) => {
     setMessages([...messages, { role: 'user', content: message }])
     setIsLoading(true)
+
+    if (!ipcRenderer) {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'IPC not available' }])
+      setIsLoading(false)
+      return
+    }
 
     try {
       const result = await ipcRenderer.invoke('chat-message', message, currentModel)
@@ -46,26 +71,46 @@ export default function App() {
     }
   }
 
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'chat':
+        return (
+          <>
+            <div className="border-b border-border bg-card p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MessageCircle className="w-6 h-6" />
+                <h1 className="text-xl font-semibold">Ollama Chat</h1>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Model: <span className="font-medium text-foreground">{currentModel}</span>
+              </div>
+            </div>
+            <ChatWindow messages={messages} onSendMessage={handleSendMessage} isLoading={isLoading} />
+          </>
+        )
+      case 'models':
+        return <ModelsPage />
+      case 'learning':
+        return <LearningPage />
+      case 'analyzer':
+        return <AnalyzerPage />
+      case 'coder':
+        return <CoderPage />
+      case 'settings':
+        return <SettingsPage />
+      default:
+        return <ChatWindow messages={messages} onSendMessage={handleSendMessage} isLoading={isLoading} />
+    }
+  }
+
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} onNavigate={setCurrentPage} />
 
-      {/* Main Chat Area */}
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <div className="border-b border-border bg-card p-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <MessageCircle className="w-6 h-6" />
-            <h1 className="text-xl font-semibold">Ollama Chat</h1>
-          </div>
-          <div className="text-sm text-muted-foreground">
-            Model: <span className="font-medium text-foreground">{currentModel}</span>
-          </div>
-        </div>
-
-        {/* Chat Window */}
-        <ChatWindow messages={messages} onSendMessage={handleSendMessage} isLoading={isLoading} />
+        {renderPage()}
       </div>
     </div>
   )

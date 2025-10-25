@@ -50,8 +50,8 @@ function createWindow() {
   const isDev = process.env.NODE_ENV === 'development';
   
   if (isDev) {
-    // In development, load from Vite dev server
-    mainWindow.loadURL('http://localhost:5173');
+    // In development, load from Vite dev server (try common ports)
+    mainWindow.loadURL('http://localhost:5175');
   } else {
     // In production, load from built React files
     mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
@@ -67,6 +67,20 @@ function createWindow() {
     }
     mainWindow.focus();
   });
+
+  // Log errors
+  mainWindow.webContents.on('crashed', () => {
+    console.error('Renderer process crashed');
+  });
+
+  mainWindow.webContents.on('render-process-gone', (event, details) => {
+    console.error('Render process gone:', details);
+  });
+
+  // Open DevTools in development
+  if (process.env.NODE_ENV === 'development') {
+    mainWindow.webContents.openDevTools();
+  }
 
 
 
