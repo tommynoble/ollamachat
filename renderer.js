@@ -643,6 +643,8 @@ async function handleSpecialCommands(message, selectedModel) {
   ) {
     try {
       await ipcRenderer.invoke('clear-conversation', selectedModel);
+      // Clear visible chat messages from UI
+      chatMessages.innerHTML = '';
       addMessage(
         `🗑️ Conversation history cleared for ${selectedModel}`,
         'system'
@@ -653,6 +655,8 @@ async function handleSpecialCommands(message, selectedModel) {
       return true;
     }
   }
+
+
 
   // Show conversation history
   if (
@@ -809,13 +813,57 @@ function formatMessage(content) {
     '<code class="inline-code">$1</code>'
   );
 
-  // Enhanced text formatting
+  // Header formatting (before other text formatting)
+  formatted = formatted.replace(/^### (.*$)/gm, '<h3 class="message-h3">$1</h3>');
+  formatted = formatted.replace(/^## (.*$)/gm, '<h2 class="message-h2">$1</h2>');
+  formatted = formatted.replace(/^# (.*$)/gm, '<h1 class="message-h1">$1</h1>');
+  
+  // Enhanced text formatting (before line breaks)
   formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
   formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
   formatted = formatted.replace(/__(.*?)__/g, '<u>$1</u>');
-
-  // Convert line breaks while preserving code blocks
+  
+  // Smart list processing (before line break conversion)
+  // Process bullet lists
+  const bulletListRegex = /^- (.+)$/gm;
+  let bulletMatches = [];
+  formatted = formatted.replace(bulletListRegex, (match, content) => {
+    bulletMatches.push(content);
+    return `BULLET_ITEM_${bulletMatches.length - 1}`;
+  });
+  
+  // Process numbered lists  
+  const numberedListRegex = /^\d+\. (.+)$/gm;
+  let numberedMatches = [];
+  formatted = formatted.replace(numberedListRegex, (match, content) => {
+    numberedMatches.push(content);
+    return `NUMBERED_ITEM_${numberedMatches.length - 1}`;
+  });
+  
+  // Convert line breaks
   formatted = formatted.replace(/\n/g, '<br>');
+  
+  // Reconstruct bullet lists
+  for (let i = 0; i < bulletMatches.length; i++) {
+    formatted = formatted.replace(`BULLET_ITEM_${i}`, `<li class="message-bullet">${bulletMatches[i]}</li>`);
+  }
+  
+  // Group consecutive bullet list items
+  formatted = formatted.replace(/(<li class="message-bullet">.*?<\/li>)(<br>)*(<li class="message-bullet">.*?<\/li>)*/g, (match) => {
+    const cleanMatch = match.replace(/<br>/g, '');
+    return `<ul class="message-list">${cleanMatch}</ul>`;
+  });
+  
+  // Reconstruct numbered lists
+  for (let i = 0; i < numberedMatches.length; i++) {
+    formatted = formatted.replace(`NUMBERED_ITEM_${i}`, `<li class="message-numbered">${numberedMatches[i]}</li>`);
+  }
+  
+  // Group consecutive numbered list items
+  formatted = formatted.replace(/(<li class="message-numbered">.*?<\/li>)(<br>)*(<li class="message-numbered">.*?<\/li>)*/g, (match) => {
+    const cleanMatch = match.replace(/<br>/g, '');
+    return `<ol class="message-list">${cleanMatch}</ol>`;
+  });
 
   // Add emoji reactions for better UX
   formatted = formatted.replace(/:\)/g, '😊');
@@ -825,6 +873,8 @@ function formatMessage(content) {
 
   return formatted;
 }
+
+
 
 // Copy code functionality
 function copyCode(button) {
@@ -1152,14 +1202,13 @@ async function loadAvailableModels() {
     },
     {
       name: 'phi3',
-      variants: ['mini', 'small', 'medium'],
+      variants: ['mini', 'medium'],
       description: "Microsoft's efficient small language model, very fast",
       tags: ['fast', 'efficient'],
-      sizes: { mini: '2.3GB', small: '7.9GB', medium: '14GB' },
+      sizes: { mini: '2.2GB', medium: '7.9GB' },
       downloadTime: {
         mini: '3-6 min',
-        small: '10-15 min',
-        medium: '18-25 min',
+        medium: '12-18 min',
       },
     },
     {

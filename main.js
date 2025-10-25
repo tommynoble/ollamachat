@@ -44,6 +44,8 @@ function createWindow() {
     show: false, // Don't show until ready
   });
 
+
+
   // Load the HTML file
   mainWindow.loadFile('index.html');
 
@@ -57,6 +59,8 @@ function createWindow() {
     }
     mainWindow.focus();
   });
+
+
 
   // Handle window closed
   mainWindow.on('closed', () => {
@@ -391,14 +395,13 @@ ipcMain.handle('get-available-models', async () => {
       },
       {
         name: 'phi3',
-        variants: ['mini', 'small', 'medium'],
+        variants: ['mini', 'medium'],
         description: "Microsoft's efficient small language model, very fast",
         tags: ['fast', 'efficient'],
-        sizes: { mini: '2.3GB', small: '7.9GB', medium: '14GB' },
+        sizes: { mini: '2.2GB', medium: '7.9GB' },
         downloadTime: {
           mini: '3-6 min',
-          small: '10-15 min',
-          medium: '18-25 min',
+          medium: '12-18 min',
         },
       },
       {

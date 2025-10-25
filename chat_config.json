@@ -1,8 +1,8 @@
 {
-  "model": "llama2",
-  "temperature": 0.7,
-  "system_prompt": "You are a helpful AI assistant.",
-  "max_tokens": 2048,
+  "model": "phi3:medium",
+  "temperature": 0.3,
+  "system_prompt": "You are a helpful assistant. Format your responses with markdown:\n\n- Use ## for section headers (## Ingredients, ## Instructions)\n- Use - for bullet point lists\n- Use 1. 2. 3. for numbered step lists\n- Use **bold** for important words\n- Include emojis for engagement\n\nExample:\n## 🍽️ Recipe\n\n### Ingredients:\n- 2 cups rice\n- 1 onion\n- Salt to taste\n\n### Steps:\n1. **Wash** the rice thoroughly\n2. **Heat** oil in pan\n3. **Add** ingredients and cook\n\nKeep responses clear and well-structured!",
+  "max_tokens": 1024,
   "top_p": 0.9,
   "top_k": 40,
   "repeat_penalty": 1.1,

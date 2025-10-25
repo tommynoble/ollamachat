@@ -343,14 +343,164 @@ class ConversationStore {
 - **Background Processing**: Non-blocking model management
 - **Memory Management**: Cleanup old conversations, optimize DOM
 
-#### 4.3 Multi-User Support (Future)
+#### 4.3 AI Inference Speed Optimizations
+
+**Goal**: Achieve ChatGPT-like blazing fast response times for local AI models
+
+##### 4.3.1 Model Selection Strategy
+
+```javascript
+// Smart model recommendations based on speed vs quality
+const modelSpeedTiers = {
+  blazing: [
+    { name: 'qwen2.5:0.5b', size: '400MB', speed: '10x faster', use: 'Quick queries, code snippets' },
+    { name: 'qwen2.5:1.5b', size: '900MB', speed: '5x faster', use: 'General chat, balanced performance' }
+  ],
+  balanced: [
+    { name: 'phi3:mini', size: '2.2GB', speed: '2x faster', use: 'Current default, good balance' }
+  ],
+  powerful: [
+    { name: 'phi3:medium', size: '7.9GB', speed: 'baseline', use: 'Complex reasoning, detailed responses' }
+  ]
+};
+```
+
+##### 4.3.2 Context Window Management
+
+**Problem**: Sending full conversation history slows down inference exponentially
+
+**Solutions**:
+```javascript
+// Smart context trimming system
+class ContextManager {
+  trimContext(messages, maxTokens = 2048) {
+    // Keep system prompt + last 5-10 exchanges only
+    // Implement intelligent summarization for older context
+    // Dynamic context based on model capabilities
+  }
+  
+  adaptiveContext(modelName, messages) {
+    const limits = {
+      'qwen2.5:0.5b': 1024,   // Aggressive trimming for speed
+      'phi3:mini': 2048,      // Balanced context
+      'phi3:medium': 4096     // More context for complex tasks
+    };
+    return this.trimContext(messages, limits[modelName]);
+  }
+}
+```
+
+##### 4.3.3 Inference Parameter Optimization
+
+```javascript
+// Speed-optimized model parameters
+const speedOptimizedParams = {
+  // Faster generation settings
+  temperature: 0.1,        // Less randomness = faster sampling
+  top_p: 0.8,             // Focused sampling = fewer computations
+  max_tokens: 500,        // Shorter responses = faster generation
+  num_predict: 256,       // Limit prediction length
+  
+  // Model-specific optimizations
+  repeat_penalty: 1.05,   // Minimal penalty for speed
+  seed: 42               // Consistent seed for reproducible fast responses
+};
+
+// Dynamic parameter adjustment based on query type
+const adaptiveParams = {
+  quickQuery: { max_tokens: 100, temperature: 0.05 },
+  codeGeneration: { max_tokens: 300, temperature: 0.1 },
+  longForm: { max_tokens: 800, temperature: 0.3 }
+};
+```
+
+##### 4.3.4 Hardware Optimization
+
+**Current Setup**: Apple M4 + Metal 3 (Good foundation)
+
+**Optimizations**:
+```javascript
+// Environment variables for optimal performance
+const performanceEnv = {
+  OLLAMA_NUM_PARALLEL: 1,           // Single model focus
+  OLLAMA_MAX_LOADED_MODELS: 1,      // Memory optimization
+  OLLAMA_FLASH_ATTENTION: true,     // Enable if supported
+  OLLAMA_USE_MLOCK: true,          // Lock model in memory
+  OLLAMA_GPU_OVERHEAD: 0.1         // Minimize GPU overhead
+};
+```
+
+##### 4.3.5 Streaming Optimization
+
+```javascript
+// Enhanced streaming for perceived speed
+class StreamingOptimizer {
+  constructor() {
+    this.bufferSize = 16;           // Smaller chunks for faster display
+    this.flushInterval = 50;        // Flush every 50ms
+    this.tokenBuffer = [];
+  }
+  
+  optimizeStream(response) {
+    // Immediately show first tokens
+    // Buffer subsequent tokens for smooth display
+    // Implement smart word boundary detection
+  }
+  
+  typewriterEffect(text, speed = 20) {
+    // Adaptive typing speed based on text length
+    // Faster for short responses, slower for readability
+  }
+}
+```
+
+##### 4.3.6 Model Preloading & Caching
+
+```javascript
+// Intelligent model management
+class ModelPerformanceManager {
+  async preloadFavoriteModel() {
+    // Keep user's most-used model always loaded
+    // Predict next likely model based on usage patterns
+  }
+  
+  async switchModelOptimized(newModel) {
+    // Graceful model switching with loading indicators
+    // Background preloading of frequently used models
+  }
+  
+  cacheFrequentResponses() {
+    // Cache common responses (greetings, simple math)
+    // Instant responses for repeated queries
+  }
+}
+```
+
+##### 4.3.7 Implementation Priority
+
+**Phase 1 (Immediate Impact)**:
+- Context window trimming (5-10x speed improvement)
+- Speed-optimized model parameters
+- Model recommendations in UI
+
+**Phase 2 (Advanced)**:
+- Smart model preloading
+- Response caching system
+- Adaptive parameter tuning
+
+**Phase 3 (Power User)**:
+- Hardware-specific optimizations
+- Advanced streaming techniques
+- Predictive model loading
+
+#### 4.4 Multi-User Support (Future)
 
 - **User Profiles**: Multiple user accounts on same machine
 - **Cloud Sync**: Optional cloud backup and sync (respecting privacy)
 - **Collaboration Features**: Share conversations, collaborative editing
 - **Team Workspaces**: Shared model configurations and templates
 
-#### 4.4 Network Features (Mobile/Web Extension)
+#### 4.5 Network Features (Mobile/Web Extension)
 
 - **Web Server Mode**: Serve UI over local network for mobile access
 - **Progressive Web App**: Installable web version

@@ -32,7 +32,28 @@ class OllamaChat:
         default_config = {
             "model": "llama2",
             "temperature": 0.7,
-            "system_prompt": "You are a helpful AI assistant.",
+            "system_prompt": """You are a helpful assistant. Format your responses with markdown:
+
+- Use ## for section headers (## Ingredients, ## Instructions)
+- Use - for bullet point lists  
+- Use 1. 2. 3. for numbered step lists
+- Use **bold** for important words
+- Include emojis for engagement
+
+Example:
+## 🍽️ Recipe
+
+### Ingredients:
+- 2 cups rice
+- 1 onion  
+- Salt to taste
+
+### Steps:
+1. **Wash** the rice thoroughly
+2. **Heat** oil in pan
+3. **Add** ingredients and cook
+
+Keep responses clear and well-structured!""",
             "max_tokens": 2048,
             "top_p": 0.9,
             "top_k": 40,
