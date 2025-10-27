@@ -81,17 +81,20 @@ export default function SettingsPage() {
     if (!selectedDrive) return
 
     try {
-      const drive = mountedDrives.find(d => d.path === selectedDrive)
+      const drive = mountedDrives.find((d: any) => d.path === selectedDrive)
       if (!drive) return
 
-      const result = await (window as any).ipcRenderer?.invoke('configure-external-drive', {
-        path: drive.path,
-        name: drive.name
-      })
+      console.log('🔧 Configuring drive:', drive.name, drive.path)
+      
+      // Use the original 'use-for-models' handler which automatically restarts Ollama
+      const result = await (window as any).ipcRenderer?.invoke('use-for-models', drive.name, drive.path)
+      
+      console.log('🔧 Configure result:', result)
 
       if (result?.success) {
         setExternalDriveConfigured(true)
-        setDrivePath(result.path)
+        setDrivePath(result.modelsPath)
+        setSelectedDrive(null)
       }
     } catch (error) {
       console.error('Error configuring drive:', error)

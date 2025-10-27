@@ -1,7 +1,6 @@
 {
-  "originalPath": "/Volumes/Extreme SSD/ollama-models",
-  "externalPath": "/Volumes/A005/ollama-models",
   "usingExternal": true,
+  "externalPath": "/Volumes/A005/ollama-models",
   "driveName": "A005",
-  "timestamp": "2025-10-22T20:45:00.006Z"
+  "configuredAt": "2025-10-27T14:23:52.887Z"
 }
