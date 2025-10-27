@@ -20,13 +20,43 @@ export default function ModelsPage() {
   }, [])
 
   const loadModels = async () => {
-    // Load available models
+    // Load available models from Ollama
     setModels([
-      { name: 'llama2', size: '3.8GB', description: 'General purpose model' },
-      { name: 'mistral', size: '4.1GB', description: 'Fast and efficient' },
-      { name: 'neural-chat', size: '3.9GB', description: 'Optimized for chat' },
-      { name: 'dolphin-mixtral', size: '26GB', description: 'Powerful multi-expert model' },
-      { name: 'orca-mini', size: '1.3GB', description: 'Lightweight model' },
+      // Qwen models
+      { name: 'qwen3-coder:30b', size: '19GB', description: 'Code generation specialist' },
+      { name: 'qwen3:30b', size: '19GB', description: 'Qwen 3 - 30B parameters' },
+      { name: 'qwen3:8b', size: '5.2GB', description: 'Qwen 3 - 8B parameters' },
+      { name: 'qwen3:4b', size: '2.6GB', description: 'Qwen 3 - 4B parameters (lightweight)' },
+      
+      // Gemma models
+      { name: 'gemma3:27b', size: '16GB', description: 'Gemma 3 - 27B parameters' },
+      { name: 'gemma3:12b', size: '7.2GB', description: 'Gemma 3 - 12B parameters' },
+      { name: 'gemma3:4b', size: '2.5GB', description: 'Gemma 3 - 4B parameters' },
+      { name: 'gemma3:1b', size: '1.2GB', description: 'Gemma 3 - 1B parameters (ultra-lightweight)' },
+      
+      // GPT-OSS models
+      { name: 'gpt-oss:120b-cloud', size: '70GB', description: 'GPT-OSS 120B (cloud)' },
+      { name: 'gpt-oss:20b-cloud', size: '12GB', description: 'GPT-OSS 20B (cloud)' },
+      { name: 'gpt-oss:120b', size: '70GB', description: 'GPT-OSS 120B' },
+      { name: 'gpt-oss:20b', size: '12GB', description: 'GPT-OSS 20B' },
+      
+      // Llama models
+      { name: 'llama2', size: '3.8GB', description: 'Meta Llama 2 - General purpose' },
+      
+      // Deepseek models
+      { name: 'deepseek-v3:671b-cloud', size: '400GB', description: 'Deepseek V3 671B (cloud)' },
+      { name: 'deepseek-r1:8b', size: '4.7GB', description: 'Deepseek R1 - 8B parameters' },
+      
+      // Mistral models
+      { name: 'mistral', size: '4.1GB', description: 'Mistral - Fast and efficient' },
+      
+      // Other models
+      { name: 'neural-chat', size: '3.9GB', description: 'Neural Chat - Optimized for chat' },
+      { name: 'dolphin-mixtral', size: '26GB', description: 'Dolphin Mixtral - Powerful multi-expert' },
+      { name: 'orca-mini', size: '1.3GB', description: 'Orca Mini - Lightweight' },
+      { name: 'glm-4.6:cloud', size: '28GB', description: 'GLM 4.6 (cloud)' },
+      { name: 'codellama', size: '3.8GB', description: 'Code Llama - Code generation' },
+      { name: 'phi3', size: '2.2GB', description: 'Phi 3 - Efficient small model' },
     ])
   }
 
