@@ -1403,6 +1403,66 @@ ipcMain.handle('scan-drives', async () => {
   }
 });
 
+// Get mounted drives on macOS - list all volumes except system ones
+ipcMain.handle('get-mounted-drives', async () => {
+  try {
+    const drives = [];
+
+    if (process.platform === 'darwin') {
+      // macOS: Read /Volumes directly
+      try {
+        const volumesPath = '/Volumes';
+        if (fs.existsSync(volumesPath)) {
+          const items = fs.readdirSync(volumesPath);
+          // List of system volumes to skip
+          const systemVolumes = ['Macintosh HD', 'VM', 'Preboot', 'Update', 'xarts', 'iSCPreboot', 'Hardware', 'Data', 'home', 'mnt1'];
+          
+          for (const item of items) {
+            // Skip system volumes and hidden files
+            if (!systemVolumes.includes(item) && !item.startsWith('.')) {
+              const fullPath = path.join(volumesPath, item);
+              
+              try {
+                // Try to get available space
+                const { execSync } = require('child_process');
+                const dfOutput = execSync(`df -h "${fullPath}"`, { encoding: 'utf8' });
+                const parts = dfOutput.split('\n')[1].split(/\s+/);
+                const available = parts[3] || 'Unknown';
+                
+                drives.push({
+                  name: item,
+                  path: fullPath,
+                  available: available
+                });
+              } catch (e) {
+                // Still add it even if we can't get size
+                drives.push({
+                  name: item,
+                  path: fullPath,
+                  available: 'Unknown'
+                });
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.log('Error reading /Volumes:', error.message);
+      }
+    }
+
+    return {
+      success: true,
+      drives: drives
+    };
+  } catch (error) {
+    console.error('Error getting mounted drives:', error);
+    return {
+      success: false,
+      drives: []
+    };
+  }
+});
+
 // Check external drive configuration
 ipcMain.handle('check-external-drive-config', async () => {
   try {

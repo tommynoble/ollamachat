@@ -5,9 +5,11 @@ import { HardDrive, Trash2, RefreshCw, CheckCircle } from 'lucide-react'
 export default function SettingsPage() {
   const [externalDriveConfigured, setExternalDriveConfigured] = useState(false)
   const [drivePath, setDrivePath] = useState('')
+  const [mountedDrives, setMountedDrives] = useState<any[]>([])
+  const [selectedDrive, setSelectedDrive] = useState<string | null>(null)
 
   useEffect(() => {
-    // Check if external drive is configured
+    // Check if external drive is configured and get mounted drives
     const checkConfig = async () => {
       try {
         const result = await (window as any).ipcRenderer?.invoke('check-external-drive-config')
@@ -15,12 +17,54 @@ export default function SettingsPage() {
           setExternalDriveConfigured(true)
           setDrivePath(result.path || '')
         }
+
+        // Get mounted drives
+        const drivesResult = await (window as any).ipcRenderer?.invoke('get-mounted-drives')
+        if (drivesResult?.drives) {
+          setMountedDrives(drivesResult.drives)
+        }
       } catch (error) {
         console.error('Error checking config:', error)
       }
     }
     checkConfig()
+
+    // Auto-refresh drives every 2 seconds to detect ejections/connections
+    const interval = setInterval(checkConfig, 2000)
+    return () => clearInterval(interval)
   }, [])
+
+  const handleConfigureDrive = async () => {
+    if (!selectedDrive) return
+
+    try {
+      const drive = mountedDrives.find(d => d.path === selectedDrive)
+      if (!drive) return
+
+      const result = await (window as any).ipcRenderer?.invoke('configure-external-drive', {
+        path: drive.path,
+        name: drive.name
+      })
+
+      if (result?.success) {
+        setExternalDriveConfigured(true)
+        setDrivePath(result.path)
+      }
+    } catch (error) {
+      console.error('Error configuring drive:', error)
+    }
+  }
+
+  const handleRefreshDrives = async () => {
+    try {
+      const drivesResult = await (window as any).ipcRenderer?.invoke('get-mounted-drives')
+      if (drivesResult?.drives) {
+        setMountedDrives(drivesResult.drives)
+      }
+    } catch (error) {
+      console.error('Error refreshing drives:', error)
+    }
+  }
 
   return (
     <div className="flex-1 flex flex-col">
@@ -45,26 +89,71 @@ export default function SettingsPage() {
                 <h3 className="text-lg font-semibold">External Drive</h3>
               </div>
               
-              <p className="text-sm text-muted-foreground mb-6">
-                Your external drive configuration for storing AI models.
+              <p className="text-sm text-muted-foreground mb-4">
+                Select an external drive to store your AI models.
               </p>
 
-              {externalDriveConfigured ? (
-                <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
-                  <div className="flex items-start gap-3">
-                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+              {/* Refresh Button */}
+              <Button 
+                onClick={handleRefreshDrives}
+                variant="outline"
+                className="w-full mb-4 gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Refresh Drives
+              </Button>
+
+              {/* Current Configuration */}
+              {externalDriveConfigured && (
+                <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 mb-4">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-semibold text-green-700 mb-1">External Drive Configured</p>
-                      <p className="text-sm text-green-600">{drivePath}</p>
+                      <p className="text-xs font-semibold text-green-700">Configured</p>
+                      <p className="text-xs text-green-600">{drivePath}</p>
                     </div>
                   </div>
                 </div>
+              )}
+
+              {/* Mounted Drives List */}
+              {mountedDrives.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4 mb-4">
+                  {externalDriveConfigured ? 'No other drives available' : 'No drives detected'}
+                </p>
               ) : (
-                <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                  <p className="text-sm text-yellow-700">
-                    No external drive configured. Models will be stored locally.
-                  </p>
+                <div className="space-y-2 mb-4">
+                  {mountedDrives.map(drive => (
+                    <div 
+                      key={drive.path}
+                      className={`p-3 border rounded-lg cursor-pointer transition ${
+                        selectedDrive === drive.path 
+                          ? 'border-primary bg-primary/10' 
+                          : 'border-border hover:bg-accent/50'
+                      }`}
+                      onClick={() => setSelectedDrive(drive.path)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium">{drive.name}</p>
+                          <p className="text-xs text-muted-foreground">{drive.path}</p>
+                        </div>
+                        <div className="text-right text-xs">
+                          <p className="font-medium">{drive.available}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
+              )}
+
+              {selectedDrive && (
+                <Button 
+                  onClick={handleConfigureDrive}
+                  className="w-full"
+                >
+                  Use {mountedDrives.find(d => d.path === selectedDrive)?.name} for Models
+                </Button>
               )}
             </div>
           </div>
