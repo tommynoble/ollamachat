@@ -9,6 +9,7 @@ export default function SettingsPage() {
   const [selectedDrive, setSelectedDrive] = useState<string | null>(null)
   const [isStartingOllama, setIsStartingOllama] = useState(false)
   const [ollamaMessage, setOllamaMessage] = useState('')
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   useEffect(() => {
     // Check if external drive is configured and get mounted drives
@@ -98,13 +99,19 @@ export default function SettingsPage() {
   }
 
   const handleRefreshDrives = async () => {
+    setIsRefreshing(true)
     try {
+      console.log('🔄 Manually refreshing drives...')
       const drivesResult = await (window as any).ipcRenderer?.invoke('get-mounted-drives')
+      console.log('🔄 Refresh result:', drivesResult)
       if (drivesResult?.drives) {
+        console.log('🔄 Found drives:', drivesResult.drives.length)
         setMountedDrives(drivesResult.drives)
       }
     } catch (error) {
       console.error('Error refreshing drives:', error)
+    } finally {
+      setIsRefreshing(false)
     }
   }
 
@@ -138,11 +145,12 @@ export default function SettingsPage() {
               {/* Refresh Button */}
               <Button 
                 onClick={handleRefreshDrives}
+                disabled={isRefreshing}
                 variant="outline"
                 className="w-full mb-4 gap-2"
               >
-                <RefreshCw className="w-4 h-4" />
-                Refresh Drives
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                {isRefreshing ? 'Refreshing...' : 'Refresh Drives'}
               </Button>
 
               {/* Current Configuration */}
