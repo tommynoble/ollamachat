@@ -166,7 +166,63 @@ export default function App() {
       case 'chat':
         return (
           <>
-            <PageHeader title="Ollama Chat" icon={MessageCircle} />
+            <div className="border-b border-border bg-card p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MessageCircle className="w-6 h-6" />
+                <h1 className="text-xl font-semibold">Ollama Chat</h1>
+              </div>
+              <div className="flex items-center gap-4">
+                {/* Model Selector */}
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Model:</label>
+                  <select
+                    value={currentModel}
+                    onChange={(e) => {
+                      setCurrentModel(e.target.value)
+                      setMessages([]) // Clear chat when switching models
+                    }}
+                    className="px-3 py-1 bg-input border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="llama2">llama2</option>
+                    <option value="mistral">mistral</option>
+                    <option value="neural-chat">neural-chat</option>
+                    <option value="dolphin-mixtral">dolphin-mixtral</option>
+                    <option value="orca-mini">orca-mini</option>
+                    <option value="codellama">codellama</option>
+                    <option value="phi3">phi3</option>
+                  </select>
+                </div>
+
+                {/* Ollama Status Indicator */}
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${
+                    ollamaStatus === 'running' 
+                      ? 'bg-green-500 animate-pulse' 
+                      : ollamaStatus === 'checking'
+                      ? 'bg-yellow-500 animate-pulse'
+                      : 'bg-red-500'
+                  }`} />
+                  <span className={`text-xs font-medium ${
+                    ollamaStatus === 'running'
+                      ? 'text-green-600'
+                      : ollamaStatus === 'checking'
+                      ? 'text-yellow-600'
+                      : 'text-red-600'
+                  }`}>
+                    {ollamaStatus === 'running' ? '🟢 Online' : ollamaStatus === 'checking' ? '🟡 Checking...' : '🔴 Offline'}
+                  </span>
+                </div>
+                
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsDarkMode(!isDarkMode)}
+                  className="rounded-full"
+                >
+                  {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                </Button>
+              </div>
+            </div>
             <ChatWindow messages={messages} onSendMessage={handleSendMessage} isLoading={isLoading} />
           </>
         )
