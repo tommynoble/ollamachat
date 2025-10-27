@@ -1,7 +1,10 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
 const fs = require('fs');
+const { spawn, execSync } = require('child_process');
+const https = require('https');
+const { createWriteStream } = require('fs');
+const { pipeline } = require('stream');
 
 // Initialize external drive settings on startup
 function initializeExternalDriveSettings() {
@@ -24,11 +27,93 @@ function initializeExternalDriveSettings() {
   return null;
 }
 
+// Auto-download Ollama if not installed
+async function ensureOllamaInstalled() {
+  const ollamaPaths = [
+    '/usr/local/bin/ollama',
+    '/opt/homebrew/bin/ollama',
+    '/usr/bin/ollama',
+  ];
+  
+  // Check if Ollama already exists
+  for (const ollamaPath of ollamaPaths) {
+    if (fs.existsSync(ollamaPath)) {
+      console.log('✅ Ollama found at:', ollamaPath);
+      return ollamaPath;
+    }
+  }
+  
+  // Ollama not found, download it
+  console.log('📥 Ollama not found. Downloading...');
+  
+  const ollamaDir = path.join(app.getPath('home'), '.ollamachat');
+  const ollamaPath = path.join(ollamaDir, 'ollama');
+  
+  // Create directory if it doesn't exist
+  if (!fs.existsSync(ollamaDir)) {
+    fs.mkdirSync(ollamaDir, { recursive: true });
+  }
+  
+  // Check if already downloaded
+  if (fs.existsSync(ollamaPath)) {
+    console.log('✅ Ollama already downloaded at:', ollamaPath);
+    return ollamaPath;
+  }
+  
+  try {
+    // Download Ollama for macOS
+    const downloadUrl = 'https://ollama.ai/download/ollama-darwin.zip';
+    const zipPath = path.join(ollamaDir, 'ollama-darwin.zip');
+    
+    console.log('⏳ Downloading Ollama from:', downloadUrl);
+    
+    await new Promise((resolve, reject) => {
+      https.get(downloadUrl, (response) => {
+        if (response.statusCode === 302 || response.statusCode === 301) {
+          // Follow redirect
+          https.get(response.headers.location, (redirectResponse) => {
+            pipeline(redirectResponse, createWriteStream(zipPath), (err) => {
+              if (err) reject(err);
+              else resolve();
+            });
+          }).on('error', reject);
+        } else {
+          pipeline(response, createWriteStream(zipPath), (err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        }
+      }).on('error', reject);
+    });
+    
+    console.log('✅ Downloaded. Extracting...');
+    
+    // Extract zip file
+    execSync(`cd "${ollamaDir}" && unzip -o ollama-darwin.zip`, { stdio: 'ignore' });
+    
+    // Make executable
+    execSync(`chmod +x "${ollamaPath}"`, { stdio: 'ignore' });
+    
+    // Clean up zip
+    fs.unlinkSync(zipPath);
+    
+    console.log('✅ Ollama installed at:', ollamaPath);
+    return ollamaPath;
+  } catch (error) {
+    console.error('❌ Failed to download Ollama:', error.message);
+    return null;
+  }
+}
+
 // Call this during app initialization
 const externalPath = initializeExternalDriveSettings();
-
 let mainWindow;
 const pythonProcess = null;
+
+// Ensure Ollama is installed on app startup
+app.on('ready', async () => {
+  await ensureOllamaInstalled();
+});
 
 // Create the main application window
 function createWindow() {
