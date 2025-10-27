@@ -142,18 +142,30 @@ export default function ModelsPage() {
               <p className="text-sm text-muted-foreground mb-3">{model.description}</p>
               <p className="text-xs text-muted-foreground mb-4">Size: {model.size}</p>
               
-              <div className="flex gap-2">
-                <Button 
-                  variant="default" 
-                  size="sm"
-                  className="flex-1 gap-2"
-                  disabled={downloadedModels.has(model.name) || downloadingModels.has(model.name)}
-                  onClick={() => handleDownloadModel(model.name)}
-                >
-                  <Download className="w-4 h-4" />
-                  {downloadingModels.has(model.name) ? 'Downloading...' : downloadedModels.has(model.name) ? 'Downloaded' : 'Download'}
-                </Button>
-                {downloadedModels.has(model.name) && (
+              {downloadingModels.has(model.name) ? (
+                // Show progress bar while downloading
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Download className="w-4 h-4" />
+                    <span className="text-sm font-medium">Downloading model</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{downloadProgress[model.name] || 'Starting...'}</p>
+                  <div className="w-full bg-secondary rounded-full h-2">
+                    <div className="bg-primary h-2 rounded-full transition-all" style={{width: '100%'}} />
+                  </div>
+                </div>
+              ) : downloadedModels.has(model.name) ? (
+                // Show downloaded state
+                <div className="flex gap-2">
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    className="flex-1 gap-2 bg-green-600 hover:bg-green-700"
+                    disabled
+                  >
+                    <Download className="w-4 h-4" />
+                    Downloaded
+                  </Button>
                   <Button 
                     variant="destructive" 
                     size="sm"
@@ -161,10 +173,18 @@ export default function ModelsPage() {
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
-                )}
-              </div>
-              {downloadProgress[model.name] && (
-                <p className="text-xs text-muted-foreground mt-2">{downloadProgress[model.name]}</p>
+                </div>
+              ) : (
+                // Show download button
+                <Button 
+                  variant="default" 
+                  size="sm"
+                  className="w-full gap-2"
+                  onClick={() => handleDownloadModel(model.name)}
+                >
+                  <Download className="w-4 h-4" />
+                  Download
+                </Button>
               )}
             </div>
           ))}
