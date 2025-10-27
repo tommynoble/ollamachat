@@ -16,14 +16,35 @@ export default function SettingsPage() {
       try {
         const result = await (window as any).ipcRenderer?.invoke('check-external-drive-config')
         if (result?.configured) {
-          setExternalDriveConfigured(true)
-          setDrivePath(result.path || '')
-        }
-
-        // Get mounted drives
-        const drivesResult = await (window as any).ipcRenderer?.invoke('get-mounted-drives')
-        if (drivesResult?.drives) {
-          setMountedDrives(drivesResult.drives)
+          // Check if the configured drive path actually exists
+          const drivesResult = await (window as any).ipcRenderer?.invoke('get-mounted-drives')
+          if (drivesResult?.drives) {
+            // Check if configured drive is in the list of mounted drives
+            const configuredDriveExists = drivesResult.drives.some(d => d.path === result.path)
+            
+            if (configuredDriveExists) {
+              setExternalDriveConfigured(true)
+              setDrivePath(result.path || '')
+            } else {
+              // Drive is configured but not mounted
+              setExternalDriveConfigured(false)
+              setDrivePath('')
+            }
+            
+            setMountedDrives(drivesResult.drives)
+          } else {
+            setExternalDriveConfigured(false)
+            setDrivePath('')
+          }
+        } else {
+          setExternalDriveConfigured(false)
+          setDrivePath('')
+          
+          // Get mounted drives
+          const drivesResult = await (window as any).ipcRenderer?.invoke('get-mounted-drives')
+          if (drivesResult?.drives) {
+            setMountedDrives(drivesResult.drives)
+          }
         }
       } catch (error) {
         console.error('Error checking config:', error)
