@@ -52,7 +52,11 @@ export default function App() {
         const result = await ipcRenderer.invoke('check-external-drive-config')
         if (result?.configured) {
           console.log('🚀 Auto-starting Ollama with configured external drive...')
-          await ipcRenderer.invoke('start-ollama')
+          console.log('📁 Models path:', result.path)
+          // Kill any existing Ollama process first
+          await ipcRenderer.invoke('kill-ollama')
+          // Then start with correct env var
+          await ipcRenderer.invoke('start-ollama-with-drive', result.path)
         }
       } catch (error) {
         console.error('Error auto-starting Ollama:', error)
