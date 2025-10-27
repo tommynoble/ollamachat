@@ -156,6 +156,23 @@ function createWindow() {
 
 
 
+  // Set Content Security Policy
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; " +
+          "script-src 'self' 'wasm-unsafe-eval'; " +
+          "style-src 'self' 'unsafe-inline'; " +
+          "img-src 'self' data:; " +
+          "font-src 'self'; " +
+          "connect-src 'self' http://localhost:* ws://localhost:*"
+        ]
+      }
+    });
+  });
+
   // Load React app - use Vite dev server in development, built files in production
   const isDev = process.env.NODE_ENV === 'development';
   
