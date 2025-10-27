@@ -11,6 +11,13 @@ export default function SettingsPage() {
   const [ollamaMessage, setOllamaMessage] = useState('')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [justConfigured, setJustConfigured] = useState(false)
+  const [hasAttemptedAutoStart, setHasAttemptedAutoStart] = useState(() => {
+    // Load from localStorage to persist across page navigation
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('hasAttemptedOllamaAutoStart') === 'true'
+    }
+    return false
+  })
 
   useEffect(() => {
     // Check if external drive is configured and get mounted drives
@@ -36,8 +43,10 @@ export default function SettingsPage() {
             setExternalDriveConfigured(true)
             setDrivePath(result.path || '')
             
-            // Auto-start Ollama on app startup if drive is configured and mounted
-            if (isInitialCheck && configuredDriveExists && !ollamaMessage) {
+            // Auto-start Ollama on app startup if drive is configured and mounted (only once per session)
+            if (isInitialCheck && configuredDriveExists && !hasAttemptedAutoStart) {
+              setHasAttemptedAutoStart(true)
+              localStorage.setItem('hasAttemptedOllamaAutoStart', 'true')
               console.log('🚀 Auto-starting Ollama with previously configured drive...')
               setOllamaMessage('Auto-starting Ollama with external drive...')
               
