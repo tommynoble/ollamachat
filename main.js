@@ -802,7 +802,22 @@ ipcMain.handle('get-downloaded-models', async () => {
     env.OLLAMA_MODELS = externalPath;
     console.log(`🎯 Loading models from external drive: ${externalPath}`);
 
-    const ollamaProcess = spawn('ollama', ['list'], { env });
+    // Find ollama executable in common paths
+    const ollamaPaths = [
+      '/usr/local/bin/ollama',
+      '/opt/homebrew/bin/ollama',
+      '/usr/bin/ollama',
+    ];
+    
+    let ollamaPath = 'ollama'; // fallback to PATH
+    for (const p of ollamaPaths) {
+      if (fs.existsSync(p)) {
+        ollamaPath = p;
+        break;
+      }
+    }
+
+    const ollamaProcess = spawn(ollamaPath, ['list'], { env });
     let output = '';
     let error = '';
 
