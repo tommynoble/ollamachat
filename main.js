@@ -1272,7 +1272,24 @@ ipcMain.handle('use-for-models', async (event, driveName, drivePath) => {
       killProcess.on('close', () => {
         // Wait a moment, then start Ollama with new path
         setTimeout(() => {
-          const ollamaProcess = spawn('ollama', ['serve'], {
+          // Find ollama executable in common paths
+          const ollamaPaths = [
+            '/usr/local/bin/ollama',
+            '/opt/homebrew/bin/ollama',
+            '/usr/bin/ollama'
+          ];
+          
+          let ollamaPath = 'ollama'; // fallback to PATH
+          for (const p of ollamaPaths) {
+            if (fs.existsSync(p)) {
+              ollamaPath = p;
+              break;
+            }
+          }
+          
+          console.log(`🚀 Starting Ollama from: ${ollamaPath}`);
+          
+          const ollamaProcess = spawn(ollamaPath, ['serve'], {
             env: { ...process.env, OLLAMA_MODELS: modelsPath },
             detached: true,
             stdio: 'ignore',
