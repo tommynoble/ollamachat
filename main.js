@@ -515,6 +515,21 @@ ipcMain.handle('download-model', async (event, modelName, variant) => {
     let error = '';
     let progressTimer = null;
     let fallbackProgress = 0;
+    let hasResolved = false;
+
+    // Handle spawn errors
+    ollamaProcess.on('error', (err) => {
+      if (!hasResolved) {
+        hasResolved = true;
+        clearInterval(progressTimer);
+        console.error('Error spawning ollama pull:', err);
+        resolve({
+          success: false,
+          error: `Failed to start download: ${err.message}`,
+          model: fullModelName,
+        });
+      }
+    });
 
     // Start fallback progress timer in case Ollama doesn't provide detailed progress
     progressTimer = setInterval(() => {
@@ -660,6 +675,9 @@ ipcMain.handle('download-model', async (event, modelName, variant) => {
     });
 
     ollamaProcess.on('close', code => {
+      if (hasResolved) return; // Already resolved due to error
+      hasResolved = true;
+      
       // Clear fallback progress timer
       if (progressTimer) {
         clearInterval(progressTimer);
@@ -667,7 +685,7 @@ ipcMain.handle('download-model', async (event, modelName, variant) => {
       }
 
       if (code === 0) {
-        console.log(`Successfully downloaded ${fullModelName}`);
+        console.log(`✅ Successfully downloaded ${fullModelName}`);
 
         // Send final completion progress
         event.sender.send('download-progress', {
@@ -681,8 +699,8 @@ ipcMain.handle('download-model', async (event, modelName, variant) => {
 
         resolve({ success: true, model: fullModelName });
       } else {
-        console.error(`Failed to download ${fullModelName}:`, error);
-        resolve({ success: false, error: error || 'Download failed' });
+        console.error(`❌ Failed to download ${fullModelName}:`, error);
+        resolve({ success: false, error: error || 'Download failed', model: fullModelName });
       }
     });
   });
