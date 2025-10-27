@@ -618,8 +618,12 @@ ipcMain.handle('download-model', async (event, modelName, variant) => {
     }
     
     console.log(`Using ollama from: ${ollamaPath}`);
+    console.log(`OLLAMA_MODELS env var: ${env.OLLAMA_MODELS}`);
     
-    const ollamaProcess = spawn(ollamaPath, ['pull', fullModelName], { env });
+    const ollamaProcess = spawn(ollamaPath, ['pull', fullModelName], { 
+      env: env,
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
     let output = '';
     let error = '';
     let progressTimer = null;
