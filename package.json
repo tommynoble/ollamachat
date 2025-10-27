@@ -12,7 +12,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "vite --host",
-    "dev:electron": "nodemon --exec electron .",
+    "dev:electron": "NODE_ENV=development nodemon --exec electron .",
     "build": "vite build",
     "preview": "vite preview",
     "test": "echo \"No tests yet\"",

@@ -1,12 +1,26 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '../components/ui/button'
-import { HardDrive, Trash2, RefreshCw } from 'lucide-react'
+import { HardDrive, Trash2, RefreshCw, CheckCircle } from 'lucide-react'
 
 export default function SettingsPage() {
-  const [drives, setDrives] = useState<any[]>([
-    { name: 'SD_Card', path: '/Volumes/SD_Card', size: '64GB', used: '32GB' }
-  ])
-  const [selectedDrive, setSelectedDrive] = useState<string | null>(null)
+  const [externalDriveConfigured, setExternalDriveConfigured] = useState(false)
+  const [drivePath, setDrivePath] = useState('')
+
+  useEffect(() => {
+    // Check if external drive is configured
+    const checkConfig = async () => {
+      try {
+        const result = await (window as any).ipcRenderer?.invoke('check-external-drive-config')
+        if (result?.configured) {
+          setExternalDriveConfigured(true)
+          setDrivePath(result.path || '')
+        }
+      } catch (error) {
+        console.error('Error checking config:', error)
+      }
+    }
+    checkConfig()
+  }, [])
 
   return (
     <div className="flex-1 flex flex-col">
@@ -31,39 +45,26 @@ export default function SettingsPage() {
                 <h3 className="text-lg font-semibold">External Drive</h3>
               </div>
               
-              <p className="text-sm text-muted-foreground mb-4">
-                Select an external drive to store your AI models. This keeps your computer lightweight.
+              <p className="text-sm text-muted-foreground mb-6">
+                Your external drive configuration for storing AI models.
               </p>
 
-              <div className="space-y-3">
-                {drives.map(drive => (
-                  <div 
-                    key={drive.name}
-                    className={`p-4 border rounded-lg cursor-pointer transition ${
-                      selectedDrive === drive.name 
-                        ? 'border-primary bg-primary/10' 
-                        : 'border-border hover:bg-accent/50'
-                    }`}
-                    onClick={() => setSelectedDrive(drive.name)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">{drive.name}</p>
-                        <p className="text-sm text-muted-foreground">{drive.path}</p>
-                      </div>
-                      <div className="text-right text-sm">
-                        <p className="font-medium">{drive.used} / {drive.size}</p>
-                        <p className="text-muted-foreground">Used</p>
-                      </div>
+              {externalDriveConfigured ? (
+                <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-green-700 mb-1">External Drive Configured</p>
+                      <p className="text-sm text-green-600">{drivePath}</p>
                     </div>
                   </div>
-                ))}
-              </div>
-
-              {selectedDrive && (
-                <Button className="w-full mt-4">
-                  Use {selectedDrive} for Models
-                </Button>
+                </div>
+              ) : (
+                <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                  <p className="text-sm text-yellow-700">
+                    No external drive configured. Models will be stored locally.
+                  </p>
+                </div>
               )}
             </div>
           </div>

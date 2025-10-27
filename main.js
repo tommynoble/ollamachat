@@ -50,8 +50,12 @@ function createWindow() {
   const isDev = process.env.NODE_ENV === 'development';
   
   if (isDev) {
-    // In development, load from Vite dev server
-    mainWindow.loadURL('http://localhost:5173');
+    // In development, load from Vite dev server (try multiple ports)
+    mainWindow.loadURL('http://localhost:5174').catch(() => {
+      mainWindow.loadURL('http://localhost:5173').catch(() => {
+        mainWindow.loadURL('http://localhost:5175');
+      });
+    });
   } else {
     // In production, load from built React files
     mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
@@ -1293,4 +1297,179 @@ ipcMain.handle('use-for-models', async (event, driveName, drivePath) => {
       });
     }
   });
+});
+
+// Scan for external drives
+ipcMain.handle('scan-drives', async () => {
+  try {
+    const { execSync } = require('child_process');
+    const drives = [];
+
+    if (process.platform === 'darwin') {
+      // macOS: List mounted volumes
+      try {
+        const output = execSync('df -h | grep "/Volumes"', { encoding: 'utf8' });
+        const lines = output.split('\n').filter(line => line.trim());
+        
+        for (const line of lines) {
+          const parts = line.split(/\s+/);
+          if (parts.length >= 6) {
+            const path = parts.slice(5).join(' ');
+            const name = path.split('/').pop() || 'External Drive';
+            const size = parts[1];
+            const used = parts[2];
+            const available = parts[3];
+            
+            drives.push({
+              name,
+              path,
+              size,
+              used,
+              available,
+              type: 'external'
+            });
+          }
+        }
+      } catch (e) {
+        console.log('Error scanning macOS drives:', e.message);
+      }
+    } else if (process.platform === 'win32') {
+      // Windows: List drives
+      try {
+        const output = execSync('wmic logicaldisk get name,size,freespace', { encoding: 'utf8' });
+        const lines = output.split('\n').filter(line => line.trim());
+        
+        for (let i = 1; i < lines.length; i++) {
+          const parts = lines[i].split(/\s+/);
+          if (parts.length >= 3) {
+            const drive = parts[0];
+            const size = parseInt(parts[1]);
+            const free = parseInt(parts[2]);
+            
+            // Skip system drive (usually C:)
+            if (drive !== 'C:') {
+              drives.push({
+                name: `${drive} Drive`,
+                path: drive,
+                size: `${(size / 1024 / 1024 / 1024).toFixed(1)} GB`,
+                available: `${(free / 1024 / 1024 / 1024).toFixed(1)} GB`,
+                type: 'external'
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.log('Error scanning Windows drives:', e.message);
+      }
+    } else {
+      // Linux: List mounted drives
+      try {
+        const output = execSync('df -h | grep -E "^/dev" | grep -v "/$"', { encoding: 'utf8' });
+        const lines = output.split('\n').filter(line => line.trim());
+        
+        for (const line of lines) {
+          const parts = line.split(/\s+/);
+          if (parts.length >= 6) {
+            const path = parts.slice(5).join(' ');
+            const name = path.split('/').pop() || 'External Drive';
+            const size = parts[1];
+            const available = parts[3];
+            
+            drives.push({
+              name,
+              path,
+              size,
+              available,
+              type: 'external'
+            });
+          }
+        }
+      } catch (e) {
+        console.log('Error scanning Linux drives:', e.message);
+      }
+    }
+
+    return {
+      success: true,
+      drives: drives.length > 0 ? drives : []
+    };
+  } catch (error) {
+    console.error('Error scanning drives:', error);
+    return {
+      success: false,
+      error: error.message,
+      drives: []
+    };
+  }
+});
+
+// Check external drive configuration
+ipcMain.handle('check-external-drive-config', async () => {
+  try {
+    const configPath = path.join(__dirname, 'ollama-config.json');
+    
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      if (config.usingExternal && config.externalPath) {
+        return {
+          configured: true,
+          path: config.externalPath,
+          driveName: config.driveName
+        };
+      }
+    }
+    
+    return { configured: false };
+  } catch (error) {
+    console.error('Error checking external drive config:', error);
+    return { configured: false };
+  }
+});
+
+// Configure external drive
+ipcMain.handle('configure-external-drive', async (event, driveInfo) => {
+  try {
+    const configPath = path.join(__dirname, 'ollama-config.json');
+    const modelsPath = path.join(driveInfo.path, 'ollama-models');
+
+    // Verify the drive exists
+    if (!fs.existsSync(driveInfo.path)) {
+      return {
+        success: false,
+        error: `Drive not found at ${driveInfo.path}`
+      };
+    }
+
+    // Create ollama-models directory if it doesn't exist
+    if (!fs.existsSync(modelsPath)) {
+      fs.mkdirSync(modelsPath, { recursive: true });
+    }
+
+    // Save configuration
+    const config = {
+      usingExternal: true,
+      externalPath: modelsPath,
+      driveName: driveInfo.name,
+      configuredAt: new Date().toISOString()
+    };
+
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+
+    // Set environment variable for current session
+    process.env.OLLAMA_MODELS = modelsPath;
+
+    console.log(`✓ External drive configured: ${driveInfo.name} at ${modelsPath}`);
+
+    return {
+      success: true,
+      message: `Successfully configured ${driveInfo.name} for Ollama models`,
+      path: modelsPath
+    };
+  } catch (error) {
+    console.error('Error configuring drive:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
 });
