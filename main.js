@@ -1345,6 +1345,30 @@ except Exception as e:
 // Start Ollama server
 ipcMain.handle('start-ollama', async event => {
   return new Promise(resolve => {
+    // REQUIRE external drive - read config first
+    const configPath = path.join(__dirname, 'ollama-config.json');
+    let drivePath = null;
+
+    if (fs.existsSync(configPath)) {
+      try {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (config.usingExternal && config.externalPath) {
+          drivePath = config.externalPath;
+        }
+      } catch (error) {
+        console.error('Error reading config');
+      }
+    }
+
+    if (!drivePath) {
+      console.error('❌ External drive not configured - cannot start Ollama');
+      resolve({
+        success: false,
+        error: 'External drive not configured. Please configure in Settings.',
+      });
+      return;
+    }
+
     const python = spawn('python3', [
       '-c',
       `
@@ -1356,12 +1380,15 @@ import requests
 import os
 
 try:
+    # CRITICAL: Always use external drive path
+    drive_path = '${drivePath}'
+    
     # Find ollama in common paths
     ollama_paths = [
         '/usr/local/bin/ollama',
         '/opt/homebrew/bin/ollama',
         '/usr/bin/ollama',
-        '/Applications/Ollama.app/Contents/MacOS/ollama'
+        '/Applications/Ollama.app/Contents/Resources/ollama'
     ]
     
     ollama_cmd = None
@@ -1371,16 +1398,19 @@ try:
             break
     
     if not ollama_cmd:
-        # Try using 'open -a Ollama' for macOS app
-        try:
-            subprocess.Popen(['open', '-a', 'Ollama'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            time.sleep(5)
-        except:
-            print(json.dumps({"success": False, "error": "Ollama not found in PATH or Applications"}))
-            sys.exit(1)
-    else:
-        # Start ollama serve with full path
-        process = subprocess.Popen([ollama_cmd, 'serve'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print(json.dumps({"success": False, "error": "Ollama not found"}))
+        sys.exit(1)
+    
+    # Start ollama serve with OLLAMA_MODELS env var set to external drive
+    env = os.environ.copy()
+    env['OLLAMA_MODELS'] = drive_path
+    
+    print(json.dumps({"success": True, "message": "Starting Ollama with external drive: " + drive_path}))
+    
+    process = subprocess.Popen([ollama_cmd, 'serve'], 
+                              env=env,
+                              stdout=subprocess.DEVNULL, 
+                              stderr=subprocess.DEVNULL)
     
     # Wait a bit and check if it's running
     time.sleep(3)
@@ -1389,11 +1419,10 @@ try:
     try:
         response = requests.get('http://localhost:11434/api/version', timeout=5)
         if response.status_code == 200:
-            print(json.dumps({"success": True, "message": "Ollama started successfully"}))
+            print(json.dumps({"success": True, "message": "Ollama started with external drive"}))
         else:
-            print(json.dumps({"success": False, "error": "Ollama server not responding"}))
+            print(json.dumps({"success": False, "error": "Ollama not responding"}))
     except:
-        # Even if request fails, ollama might be starting
         print(json.dumps({"success": True, "message": "Ollama is starting..."}))
         
 except Exception as e:
