@@ -14,8 +14,8 @@ export default function ModelsPage() {
     checkStorageLocation()
     getDownloadedModels()
     
-    // Auto-refresh downloaded models every 2 seconds to detect new downloads
-    const interval = setInterval(getDownloadedModels, 2000)
+    // Auto-refresh downloaded models every 1 second to detect new downloads
+    const interval = setInterval(getDownloadedModels, 1000)
     return () => clearInterval(interval)
   }, [])
 
