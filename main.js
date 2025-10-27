@@ -385,11 +385,12 @@ ipcMain.handle('chat-message', async (event, message, model) => {
         content: message,
       });
 
-      // Ensure model has a variant (e.g., deepseek-r1 -> deepseek-r1:latest)
-      const modelWithVariant = model.includes(':') ? model : `${model}:latest`;
+      // Use the model name as-is (Ollama handles variants internally)
+      // If model is "deepseek-r1:8b", use just "deepseek-r1"
+      const modelName = model.split(':')[0];
       
       const payload = {
-        model: modelWithVariant,
+        model: modelName,
         messages: messages,
         stream: false,
         options: modelConfig,
