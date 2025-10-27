@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Button } from '../components/ui/button'
-import { Download, Trash2, FolderOpen, BarChart3 } from 'lucide-react'
+import { Download, Trash2, FolderOpen, BarChart3, RefreshCw } from 'lucide-react'
 
 export default function ModelsPage() {
   const [models, setModels] = useState<any[]>([])
@@ -175,9 +175,20 @@ export default function ModelsPage() {
     <div className="flex-1 flex flex-col">
       {/* Header */}
       <div className="border-b border-border bg-card p-6">
-        <div className="flex items-center gap-2 mb-2">
-          <BarChart3 className="w-6 h-6" />
-          <h2 className="text-2xl font-bold">Model Management</h2>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="w-6 h-6" />
+            <h2 className="text-2xl font-bold">Model Management</h2>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm"
+            className="gap-2"
+            onClick={() => getDownloadedModels()}
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </Button>
         </div>
         <p className="text-muted-foreground mb-4">Download and manage AI models</p>
         
@@ -192,6 +203,23 @@ export default function ModelsPage() {
           </Button>
         </div>
       </div>
+
+      {/* Downloaded Models Section */}
+      {downloadedModels.size > 0 && (
+        <div className="border-b border-border bg-card/50 p-6">
+          <h3 className="text-lg font-semibold mb-3">📥 Downloaded Models ({downloadedModels.size})</h3>
+          <div className="flex flex-wrap gap-2">
+            {Array.from(downloadedModels).map(modelName => (
+              <div 
+                key={modelName}
+                className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/20 border border-green-500/50"
+              >
+                <span className="text-sm font-medium text-green-700">✅ {modelName}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Models Grid */}
       <div className="flex-1 overflow-y-auto p-6">
