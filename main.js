@@ -1275,9 +1275,10 @@ except Exception as e:
 ipcMain.handle('kill-ollama', async () => {
   return new Promise(resolve => {
     try {
-      execSync('pkill -f "ollama serve"', { stdio: 'ignore' });
+      execSync('pkill -9 -f "ollama serve"', { stdio: 'ignore' });
       console.log('✅ Killed existing Ollama process');
-      setTimeout(() => resolve({ success: true }), 1000);
+      // Wait longer to ensure process is fully terminated
+      setTimeout(() => resolve({ success: true }), 2000);
     } catch (error) {
       console.log('No Ollama process to kill');
       resolve({ success: true });
