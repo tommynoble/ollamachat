@@ -5,6 +5,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
+  useSidebar,
 } from "./ui/sidebar"
 import { MessageCircle, BookOpen, Code2, Settings, BarChart3, Zap, GitCompare, ChevronDown, TrendingUp, Briefcase, Wrench, Cloud } from "lucide-react"
 
@@ -20,6 +21,7 @@ interface NavCategory {
 }
 
 export function AppSidebar({ currentPage = "chat", onNavigate }: AppSidebarProps) {
+  const { open } = useSidebar()
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
     chat: true,
     finance: false,
@@ -107,9 +109,11 @@ export function AppSidebar({ currentPage = "chat", onNavigate }: AppSidebarProps
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
-        <div className="px-2 py-4 mb-4">
-          <h1 className="text-lg font-bold">🤖 Ollama Chat</h1>
-        </div>
+        {open && (
+          <div className="px-2 py-4 mb-4">
+            <h1 className="text-lg font-bold">🤖 Ollama Chat</h1>
+          </div>
+        )}
 
         {Object.entries(categories).map(([key, category], idx) => {
           const Icon = category.icon
@@ -125,14 +129,12 @@ export function AppSidebar({ currentPage = "chat", onNavigate }: AppSidebarProps
               >
                 <div className="flex items-center gap-2">
                   <Icon className="w-4 h-4" />
-                  <span>{category.label}</span>
+                  {open && <span>{category.label}</span>}
                 </div>
-                <ChevronDown
-                  className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                />
+                {open && <ChevronDown className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />}
               </button>
               
-              {isExpanded && (
+              {isExpanded && open && (
                 <SidebarGroupContent>
                   <div className="flex flex-col pl-4">
                     {category.items.map((item, idx) => (
@@ -152,9 +154,10 @@ export function AppSidebar({ currentPage = "chat", onNavigate }: AppSidebarProps
         })}
 
         {/* App Settings Section */}
-        <SidebarGroup className="mt-auto border-t border-sidebar/20 pt-4">
-          <SidebarGroupLabel>App Settings</SidebarGroupLabel>
-          <SidebarGroupContent>
+        {open && (
+          <SidebarGroup className="mt-auto border-t border-sidebar/20 pt-4">
+            <SidebarGroupLabel>App Settings</SidebarGroupLabel>
+            <SidebarGroupContent>
             <div className="flex flex-col gap-1">
               {[
                 { label: "Models", icon: BarChart3, page: "models" },
@@ -162,8 +165,9 @@ export function AppSidebar({ currentPage = "chat", onNavigate }: AppSidebarProps
                 { label: "Go Online", icon: Cloud, page: "online" },
               ].map(item => renderNavItem(item))}
             </div>
-          </SidebarGroupContent>
-        </SidebarGroup>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
     </Sidebar>
   )
