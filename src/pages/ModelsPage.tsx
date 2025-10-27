@@ -249,7 +249,7 @@ export default function ModelsPage() {
                     <div className="bg-primary h-2 rounded-full transition-all" style={{width: '100%'}} />
                   </div>
                 </div>
-              ) : downloadedModels.has(model.name) ? (
+              ) : downloadedModels.has(model.name) || downloadedModels.has(model.name.split(':')[0]) ? (
                 // Show downloaded state
                 <div className="flex gap-2">
                   <Button 
