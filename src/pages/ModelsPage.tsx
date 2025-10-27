@@ -6,24 +6,96 @@ export default function ModelsPage() {
   const [models, setModels] = useState<any[]>([])
   const [downloadedModels, setDownloadedModels] = useState<Set<string>>(new Set())
   const [storageLocation, setStorageLocation] = useState('Local')
+  const [downloadingModels, setDownloadingModels] = useState<Set<string>>(new Set())
+  const [downloadProgress, setDownloadProgress] = useState<{ [key: string]: string }>({})
 
   useEffect(() => {
     loadModels()
     checkStorageLocation()
+    getDownloadedModels()
   }, [])
 
   const loadModels = async () => {
-    // TODO: Load from IPC
+    // Load available models
     setModels([
       { name: 'llama2', size: '3.8GB', description: 'General purpose model' },
       { name: 'mistral', size: '4.1GB', description: 'Fast and efficient' },
       { name: 'neural-chat', size: '3.9GB', description: 'Optimized for chat' },
+      { name: 'dolphin-mixtral', size: '26GB', description: 'Powerful multi-expert model' },
+      { name: 'orca-mini', size: '1.3GB', description: 'Lightweight model' },
     ])
   }
 
   const checkStorageLocation = async () => {
-    // TODO: Check from IPC
-    setStorageLocation('External Drive')
+    // Check from IPC
+    try {
+      const result = await (window as any).ipcRenderer?.invoke('check-external-drive-config')
+      if (result?.configured) {
+        setStorageLocation(`External Drive (${result.path})`)
+      } else {
+        setStorageLocation('Local Storage')
+      }
+    } catch (error) {
+      setStorageLocation('Local Storage')
+    }
+  }
+
+  const getDownloadedModels = async () => {
+    // Get list of downloaded models
+    try {
+      const result = await (window as any).ipcRenderer?.invoke('get-downloaded-models')
+      if (result?.success && result.models) {
+        setDownloadedModels(new Set(result.models))
+      }
+    } catch (error) {
+      console.error('Error getting downloaded models:', error)
+    }
+  }
+
+  const handleDownloadModel = async (modelName: string) => {
+    setDownloadingModels(prev => new Set(prev).add(modelName))
+    setDownloadProgress(prev => ({ ...prev, [modelName]: 'Starting...' }))
+
+    try {
+      const result = await (window as any).ipcRenderer?.invoke('download-model', modelName)
+      if (result?.success) {
+        setDownloadedModels(prev => new Set(prev).add(modelName))
+        setDownloadProgress(prev => ({ ...prev, [modelName]: 'Downloaded!' }))
+        setTimeout(() => {
+          setDownloadProgress(prev => {
+            const newProgress = { ...prev }
+            delete newProgress[modelName]
+            return newProgress
+          })
+        }, 2000)
+      } else {
+        setDownloadProgress(prev => ({ ...prev, [modelName]: `Error: ${result?.error}` }))
+      }
+    } catch (error) {
+      setDownloadProgress(prev => ({ ...prev, [modelName]: 'Download failed' }))
+      console.error('Error downloading model:', error)
+    } finally {
+      setDownloadingModels(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(modelName)
+        return newSet
+      })
+    }
+  }
+
+  const handleDeleteModel = async (modelName: string) => {
+    try {
+      const result = await (window as any).ipcRenderer?.invoke('delete-model', modelName)
+      if (result?.success) {
+        setDownloadedModels(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(modelName)
+          return newSet
+        })
+      }
+    } catch (error) {
+      console.error('Error deleting model:', error)
+    }
   }
 
   return (
@@ -62,17 +134,25 @@ export default function ModelsPage() {
                   variant="default" 
                   size="sm"
                   className="flex-1 gap-2"
-                  disabled={downloadedModels.has(model.name)}
+                  disabled={downloadedModels.has(model.name) || downloadingModels.has(model.name)}
+                  onClick={() => handleDownloadModel(model.name)}
                 >
                   <Download className="w-4 h-4" />
-                  {downloadedModels.has(model.name) ? 'Downloaded' : 'Download'}
+                  {downloadingModels.has(model.name) ? 'Downloading...' : downloadedModels.has(model.name) ? 'Downloaded' : 'Download'}
                 </Button>
                 {downloadedModels.has(model.name) && (
-                  <Button variant="destructive" size="sm">
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={() => handleDeleteModel(model.name)}
+                  >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 )}
               </div>
+              {downloadProgress[model.name] && (
+                <p className="text-xs text-muted-foreground mt-2">{downloadProgress[model.name]}</p>
+              )}
             </div>
           ))}
         </div>
