@@ -11,6 +11,7 @@ import ComparisonPage from './pages/ComparisonPage'
 import OnlinePage from './pages/OnlinePage'
 import { MessageCircle, Moon, Sun, BookOpen, Code2, GitCompare } from 'lucide-react'
 import { Button } from './components/ui/button'
+import { SidebarTrigger } from './components/ui/sidebar'
 
 // Get ipcRenderer from the preload script
 const ipcRenderer = (window as any).ipcRenderer || null
@@ -201,6 +202,7 @@ export default function App() {
           <>
             <div className="border-b border-border bg-card p-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
+                <SidebarTrigger className="mr-2" />
                 <MessageCircle className="w-6 h-6" />
                 <h1 className="text-xl font-semibold">Ollama Chat</h1>
               </div>
