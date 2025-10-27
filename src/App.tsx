@@ -143,9 +143,12 @@ export default function App() {
 
     try {
       const result = await ipcRenderer.invoke('chat-message', message, currentModel)
+      console.log('Chat response:', result)
       if (result.success) {
+        console.log('Adding response:', result.response)
         setMessages(prev => [...prev, { role: 'assistant', content: result.response }])
       } else {
+        console.error('Chat error:', result.error)
         setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${result.error}` }])
       }
     } catch (error) {
