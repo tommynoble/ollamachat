@@ -224,7 +224,10 @@ export default function ModelsPage() {
       {/* Models Grid */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {models.map(model => (
+          {/* Show downloaded models first */}
+          {models
+            .filter(model => downloadedModels.has(model.name))
+            .map(model => (
             <div key={model.name} className="border border-border rounded-lg p-4 bg-card hover:bg-accent/50 transition">
               <h3 className="font-semibold mb-2">{model.name}</h3>
               <p className="text-sm text-muted-foreground mb-3">{model.description}</p>
@@ -261,6 +264,42 @@ export default function ModelsPage() {
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
+                </div>
+              ) : (
+                // Show download button
+                <Button 
+                  variant="default" 
+                  size="sm"
+                  className="w-full gap-2"
+                  onClick={() => handleDownloadModel(model.name)}
+                >
+                  <Download className="w-4 h-4" />
+                  Download
+                </Button>
+              )}
+            </div>
+          ))}
+          
+          {/* Show non-downloaded models after */}
+          {models
+            .filter(model => !downloadedModels.has(model.name))
+            .map(model => (
+            <div key={model.name} className="border border-border rounded-lg p-4 bg-card hover:bg-accent/50 transition">
+              <h3 className="font-semibold mb-2">{model.name}</h3>
+              <p className="text-sm text-muted-foreground mb-3">{model.description}</p>
+              <p className="text-xs text-muted-foreground mb-4">Size: {model.size}</p>
+              
+              {downloadingModels.has(model.name) ? (
+                // Show progress bar while downloading
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Download className="w-4 h-4" />
+                    <span className="text-sm font-medium">Downloading model</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{downloadProgress[model.name] || 'Starting...'}</p>
+                  <div className="w-full bg-secondary rounded-full h-2">
+                    <div className="bg-primary h-2 rounded-full transition-all" style={{width: '100%'}} />
+                  </div>
                 </div>
               ) : (
                 // Show download button
