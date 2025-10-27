@@ -45,6 +45,20 @@ export default function App() {
     // Load available models on startup
     loadModels()
     
+    // Auto-start Ollama if external drive is configured
+    const autoStartOllama = async () => {
+      if (!ipcRenderer) return
+      try {
+        const result = await ipcRenderer.invoke('check-external-drive-config')
+        if (result?.configured) {
+          console.log('🚀 Auto-starting Ollama with configured external drive...')
+          await ipcRenderer.invoke('start-ollama')
+        }
+      } catch (error) {
+        console.error('Error auto-starting Ollama:', error)
+      }
+    }
+    
     // Check Ollama status periodically
     const checkOllamaStatus = async () => {
       if (!ipcRenderer) return
@@ -55,6 +69,9 @@ export default function App() {
         setOllamaStatus('offline')
       }
     }
+    
+    // Auto-start on app startup
+    autoStartOllama()
     
     checkOllamaStatus()
     const interval = setInterval(checkOllamaStatus, 2000) // Check every 2 seconds for faster feedback
