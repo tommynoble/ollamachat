@@ -53,12 +53,15 @@ export default function App() {
         const result = await ipcRenderer.invoke('get-downloaded-models')
         if (result?.success && result.models) {
           const modelNames = result.models.map((m: any) => {
-            // Extract model name from the full path
+            // Handle both string and object formats
             if (typeof m === 'string') {
               return m.split(':')[0] // Remove variant like :latest
+            } else if (typeof m === 'object' && m.name) {
+              return m.name.split(':')[0] // Extract name from object
             }
-            return m
-          })
+            return null
+          }).filter((m: any) => m !== null) // Remove nulls
+          
           setDownloadedModels(modelNames)
           // Set current model to first downloaded model if available
           if (modelNames.length > 0 && !modelNames.includes(currentModel)) {
