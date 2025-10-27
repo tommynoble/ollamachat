@@ -8,7 +8,8 @@ import AnalyzerPage from './pages/AnalyzerPage'
 import CoderPage from './pages/CoderPage'
 import SettingsPage from './pages/SettingsPage'
 import ComparisonPage from './pages/ComparisonPage'
-import { MessageCircle, Moon, Sun, BarChart3, BookOpen, Zap, Code2, Settings, GitCompare } from 'lucide-react'
+import OnlinePage from './pages/OnlinePage'
+import { MessageCircle, Moon, Sun, BarChart3, BookOpen, Zap, Code2, Settings, GitCompare, Cloud } from 'lucide-react'
 import { Button } from './components/ui/button'
 
 let ipcRenderer: any = null
@@ -158,6 +159,13 @@ export default function App() {
           <>
             <PageHeader title="Settings" icon={Settings} />
             <SettingsPage />
+          </>
+        )
+      case 'online':
+        return (
+          <>
+            <PageHeader title="Cloud Models" icon={Cloud} />
+            <OnlinePage />
           </>
         )
       default:

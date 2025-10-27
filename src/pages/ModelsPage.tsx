@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Button } from '../components/ui/button'
-import { Download, Trash2, FolderOpen } from 'lucide-react'
+import { Download, Trash2, FolderOpen, BarChart3 } from 'lucide-react'
 
 export default function ModelsPage() {
   const [models, setModels] = useState<any[]>([])
@@ -30,7 +30,10 @@ export default function ModelsPage() {
     <div className="flex-1 flex flex-col">
       {/* Header */}
       <div className="border-b border-border bg-card p-6">
-        <h2 className="text-2xl font-bold mb-2">📚 Model Management</h2>
+        <div className="flex items-center gap-2 mb-2">
+          <BarChart3 className="w-6 h-6" />
+          <h2 className="text-2xl font-bold">Model Management</h2>
+        </div>
         <p className="text-muted-foreground mb-4">Download and manage AI models</p>
         
         <div className="flex items-center justify-between">

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button } from '../components/ui/button'
-import { Plus, Trash2, Copy } from 'lucide-react'
+import { Plus, Trash2, Copy, GitCompare } from 'lucide-react'
 
 interface ComparisonResult {
   model: string
@@ -47,6 +47,15 @@ export default function ComparisonPage() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="border-b border-border bg-card p-6">
+        <div className="flex items-center gap-2 mb-2">
+          <GitCompare className="w-6 h-6" />
+          <h2 className="text-2xl font-bold">Model Comparison</h2>
+        </div>
+        <p className="text-muted-foreground">Compare responses from different AI models</p>
+      </div>
+
       {/* Input Section */}
       <div className="border-b border-border bg-card p-6">
         <h3 className="text-lg font-semibold mb-4">Enter Your Prompt</h3>

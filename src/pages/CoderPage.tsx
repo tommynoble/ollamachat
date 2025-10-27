@@ -22,7 +22,10 @@ export default function CoderPage() {
     <div className="flex-1 flex flex-col">
       {/* Header */}
       <div className="border-b border-border bg-card p-6">
-        <h2 className="text-2xl font-bold mb-2">💻 Code Assistant</h2>
+        <div className="flex items-center gap-2 mb-2">
+          <Code2 className="w-6 h-6" />
+          <h2 className="text-2xl font-bold">Code Assistant</h2>
+        </div>
         <p className="text-muted-foreground">Generate and review code with AI assistance</p>
       </div>
 

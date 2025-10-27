@@ -27,7 +27,10 @@ export default function LearningPage() {
     <div className="flex-1 flex flex-col">
       {/* Header */}
       <div className="border-b border-border bg-card p-6">
-        <h2 className="text-2xl font-bold mb-2">🎓 AI Learning Center</h2>
+        <div className="flex items-center gap-2 mb-2">
+          <BookOpen className="w-6 h-6" />
+          <h2 className="text-2xl font-bold">AI Learning Center</h2>
+        </div>
         <p className="text-muted-foreground">Interactive courses powered by AI tutors</p>
       </div>
 
