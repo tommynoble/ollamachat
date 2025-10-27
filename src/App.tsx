@@ -9,7 +9,7 @@ import CoderPage from './pages/CoderPage'
 import SettingsPage from './pages/SettingsPage'
 import ComparisonPage from './pages/ComparisonPage'
 import OnlinePage from './pages/OnlinePage'
-import { MessageCircle, Moon, Sun, BarChart3, BookOpen, Zap, Code2, Settings, GitCompare, Cloud } from 'lucide-react'
+import { MessageCircle, Moon, Sun, BookOpen, Zap, Code2, GitCompare } from 'lucide-react'
 import { Button } from './components/ui/button'
 
 // Get ipcRenderer from the preload script
@@ -261,18 +261,13 @@ export default function App() {
             <ChatWindow messages={messages} onSendMessage={handleSendMessage} isLoading={isLoading} />
           </>
         )
+      case 'models':
+        return <ModelsPage />
       case 'comparison':
         return (
           <>
             <PageHeader title="Model Comparison" icon={GitCompare} />
             <ComparisonPage />
-          </>
-        )
-      case 'models':
-        return (
-          <>
-            <PageHeader title="Model Management" icon={BarChart3} />
-            <ModelsPage />
           </>
         )
       case 'learning':
@@ -297,19 +292,9 @@ export default function App() {
           </>
         )
       case 'settings':
-        return (
-          <>
-            <PageHeader title="Settings" icon={Settings} />
-            <SettingsPage />
-          </>
-        )
+        return <SettingsPage />
       case 'online':
-        return (
-          <>
-            <PageHeader title="Cloud Models" icon={Cloud} />
-            <OnlinePage />
-          </>
-        )
+        return <OnlinePage />
       default:
         return (
           <>
