@@ -20,6 +20,7 @@ export default function App() {
   const [messages, setMessages] = useState<Array<{ role: string; content: string }>>([])
   const [currentModel, setCurrentModel] = useState('llama2')
   const [isLoading, setIsLoading] = useState(false)
+  const [downloadedModels, setDownloadedModels] = useState<string[]>([])
   const [isDarkMode, setIsDarkMode] = useState(() => {
     // Load theme preference from localStorage, default to dark
     if (typeof window !== 'undefined') {
@@ -44,6 +45,30 @@ export default function App() {
   useEffect(() => {
     // Load available models on startup
     loadModels()
+    
+    // Fetch downloaded models
+    const fetchDownloadedModels = async () => {
+      if (!ipcRenderer) return
+      try {
+        const result = await ipcRenderer.invoke('get-downloaded-models')
+        if (result?.success && result.models) {
+          const modelNames = result.models.map((m: any) => {
+            // Extract model name from the full path
+            if (typeof m === 'string') {
+              return m.split(':')[0] // Remove variant like :latest
+            }
+            return m
+          })
+          setDownloadedModels(modelNames)
+          // Set current model to first downloaded model if available
+          if (modelNames.length > 0 && !modelNames.includes(currentModel)) {
+            setCurrentModel(modelNames[0])
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching downloaded models:', error)
+      }
+    }
     
     // Auto-start Ollama if external drive is configured
     const autoStartOllama = async () => {
@@ -76,10 +101,15 @@ export default function App() {
     
     // Auto-start on app startup
     autoStartOllama()
+    fetchDownloadedModels()
     
     checkOllamaStatus()
     const interval = setInterval(checkOllamaStatus, 2000) // Check every 2 seconds for faster feedback
-    return () => clearInterval(interval)
+    const modelsInterval = setInterval(fetchDownloadedModels, 3000) // Refresh models every 3 seconds
+    return () => {
+      clearInterval(interval)
+      clearInterval(modelsInterval)
+    }
   }, [])
 
   const loadModels = async () => {
@@ -172,25 +202,27 @@ export default function App() {
                 <h1 className="text-xl font-semibold">Ollama Chat</h1>
               </div>
               <div className="flex items-center gap-4">
-                {/* Model Selector */}
+                {/* Model Selector - Only Downloaded Models */}
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium">Model:</label>
-                  <select
-                    value={currentModel}
-                    onChange={(e) => {
-                      setCurrentModel(e.target.value)
-                      setMessages([]) // Clear chat when switching models
-                    }}
-                    className="px-3 py-1 bg-input border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <option value="llama2">llama2</option>
-                    <option value="mistral">mistral</option>
-                    <option value="neural-chat">neural-chat</option>
-                    <option value="dolphin-mixtral">dolphin-mixtral</option>
-                    <option value="orca-mini">orca-mini</option>
-                    <option value="codellama">codellama</option>
-                    <option value="phi3">phi3</option>
-                  </select>
+                  {downloadedModels.length > 0 ? (
+                    <select
+                      value={currentModel}
+                      onChange={(e) => {
+                        setCurrentModel(e.target.value)
+                        setMessages([]) // Clear chat when switching models
+                      }}
+                      className="px-3 py-1 bg-input border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      {downloadedModels.map((model) => (
+                        <option key={model} value={model}>
+                          {model}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">No models downloaded</span>
+                  )}
                 </div>
 
                 {/* Ollama Status Indicator */}
