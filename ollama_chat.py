@@ -113,8 +113,25 @@ Keep responses clear and well-structured!""",
         """Attempt to start the Ollama server."""
         print(f"{Fore.YELLOW}Attempting to start Ollama server...")
         try:
+            # Find ollama in common paths
+            ollama_paths = [
+                '/usr/local/bin/ollama',
+                '/opt/homebrew/bin/ollama',
+                '/usr/bin/ollama',
+            ]
+            
+            ollama_cmd = None
+            for path in ollama_paths:
+                if os.path.exists(path):
+                    ollama_cmd = path
+                    break
+            
+            if not ollama_cmd:
+                print(f"{Fore.RED}Ollama not found in common paths")
+                return False
+            
             # Start ollama in background
-            subprocess.Popen(['ollama', 'serve'], 
+            subprocess.Popen([ollama_cmd, 'serve'], 
                            stdout=subprocess.DEVNULL, 
                            stderr=subprocess.DEVNULL)
             
