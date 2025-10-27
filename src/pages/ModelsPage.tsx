@@ -226,7 +226,11 @@ export default function ModelsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Show downloaded models first */}
           {models
-            .filter(model => downloadedModels.has(model.name))
+            .filter(model => {
+              // Check if model is downloaded (handle both exact match and base name match)
+              const baseName = model.name.split(':')[0]
+              return downloadedModels.has(model.name) || downloadedModels.has(baseName)
+            })
             .map(model => (
             <div key={model.name} className="border border-border rounded-lg p-4 bg-card hover:bg-accent/50 transition">
               <h3 className="font-semibold mb-2">{model.name}</h3>
@@ -282,7 +286,11 @@ export default function ModelsPage() {
           
           {/* Show non-downloaded models after */}
           {models
-            .filter(model => !downloadedModels.has(model.name))
+            .filter(model => {
+              // Check if model is NOT downloaded (handle both exact match and base name match)
+              const baseName = model.name.split(':')[0]
+              return !downloadedModels.has(model.name) && !downloadedModels.has(baseName)
+            })
             .map(model => (
             <div key={model.name} className="border border-border rounded-lg p-4 bg-card hover:bg-accent/50 transition">
               <h3 className="font-semibold mb-2">{model.name}</h3>
