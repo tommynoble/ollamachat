@@ -12,16 +12,8 @@ import OnlinePage from './pages/OnlinePage'
 import { MessageCircle, Moon, Sun, BarChart3, BookOpen, Zap, Code2, Settings, GitCompare, Cloud } from 'lucide-react'
 import { Button } from './components/ui/button'
 
-let ipcRenderer: any = null
-
-if (typeof window !== 'undefined' && (window as any).require) {
-  try {
-    const electron = (window as any).require('electron')
-    ipcRenderer = electron.ipcRenderer
-  } catch (error) {
-    console.error('Failed to load electron IPC:', error)
-  }
-}
+// Get ipcRenderer from the preload script
+const ipcRenderer = (window as any).ipcRenderer || null
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('chat')

@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { Button } from '../components/ui/button'
-import { HardDrive, Trash2, RefreshCw, CheckCircle } from 'lucide-react'
+import { HardDrive, Trash2, RefreshCw, CheckCircle, Play } from 'lucide-react'
 
 export default function SettingsPage() {
   const [externalDriveConfigured, setExternalDriveConfigured] = useState(false)
   const [drivePath, setDrivePath] = useState('')
   const [mountedDrives, setMountedDrives] = useState<any[]>([])
   const [selectedDrive, setSelectedDrive] = useState<string | null>(null)
+  const [isStartingOllama, setIsStartingOllama] = useState(false)
+  const [ollamaMessage, setOllamaMessage] = useState('')
 
   useEffect(() => {
     // Check if external drive is configured and get mounted drives
@@ -33,6 +35,25 @@ export default function SettingsPage() {
     const interval = setInterval(checkConfig, 2000)
     return () => clearInterval(interval)
   }, [])
+
+  const handleStartOllama = async () => {
+    setIsStartingOllama(true)
+    setOllamaMessage('Starting Ollama...')
+    try {
+      const result = await (window as any).ipcRenderer?.invoke('start-ollama')
+      if (result?.success) {
+        setOllamaMessage('✓ Ollama started! Give it a moment to fully initialize.')
+        setTimeout(() => setOllamaMessage(''), 5000)
+      } else {
+        setOllamaMessage(`Error: ${result?.error}`)
+      }
+    } catch (error) {
+      setOllamaMessage('Failed to start Ollama')
+      console.error('Error starting Ollama:', error)
+    } finally {
+      setIsStartingOllama(false)
+    }
+  }
 
   const handleConfigureDrive = async () => {
     if (!selectedDrive) return
@@ -160,6 +181,30 @@ export default function SettingsPage() {
 
           {/* Right Column */}
           <div className="space-y-6">
+            {/* Ollama Server Section */}
+            <div className="border border-border rounded-lg p-6 bg-card">
+              <h3 className="text-lg font-semibold mb-4">Ollama Server</h3>
+              
+              <Button 
+                onClick={handleStartOllama}
+                disabled={isStartingOllama}
+                className="w-full gap-2"
+              >
+                <Play className="w-4 h-4" />
+                {isStartingOllama ? 'Starting...' : 'Start Ollama'}
+              </Button>
+
+              {ollamaMessage && (
+                <div className={`mt-3 p-3 rounded-lg text-sm ${
+                  ollamaMessage.includes('✓')
+                    ? 'bg-green-500/10 text-green-700 border border-green-500/20'
+                    : 'bg-red-500/10 text-red-700 border border-red-500/20'
+                }`}>
+                  {ollamaMessage}
+                </div>
+              )}
+            </div>
+
             {/* Model Management Section */}
             <div className="border border-border rounded-lg p-6 bg-card">
               <h3 className="text-lg font-semibold mb-4">Model Management</h3>

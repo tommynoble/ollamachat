@@ -37,8 +37,9 @@ function createWindow() {
     height: 800,
     webPreferences: {
       nodeIntegration: false,
-      contextIsolation: false,
+      contextIsolation: true,
       enableRemoteModule: false,
+      preload: path.join(__dirname, 'preload.js'),
     },
     titleBarStyle: 'default',
     show: false, // Don't show until ready
@@ -1399,6 +1400,93 @@ ipcMain.handle('scan-drives', async () => {
       success: false,
       error: error.message,
       drives: []
+    };
+  }
+});
+
+// Start Ollama server
+ipcMain.handle('start-ollama', async () => {
+  try {
+    const { execSync } = require('child_process');
+    
+    if (process.platform === 'darwin') {
+      // macOS: Start Ollama app (preferred method)
+      try {
+        execSync('open -a Ollama', { stdio: 'ignore' });
+        console.log('✓ Ollama app started');
+        return {
+          success: true,
+          message: 'Ollama is starting...'
+        };
+      } catch (e) {
+        console.log('Ollama app not found, trying command line...');
+        // Try common installation paths
+        const paths = [
+          '/usr/local/bin/ollama',
+          '/opt/homebrew/bin/ollama',
+          '/usr/bin/ollama'
+        ];
+        
+        for (const ollamaPath of paths) {
+          if (fs.existsSync(ollamaPath)) {
+            try {
+              execSync(`${ollamaPath} serve &`, { detached: true, stdio: 'ignore' });
+              console.log(`✓ Ollama server started from ${ollamaPath}`);
+              return {
+                success: true,
+                message: 'Ollama server is starting...'
+              };
+            } catch (e2) {
+              console.log(`Failed to start from ${ollamaPath}:`, e2.message);
+            }
+          }
+        }
+        
+        return {
+          success: false,
+          error: 'Ollama not found. Please install from https://ollama.ai'
+        };
+      }
+    } else if (process.platform === 'win32') {
+      // Windows: Start Ollama
+      try {
+        execSync('start ollama', { stdio: 'ignore' });
+        return {
+          success: true,
+          message: 'Ollama is starting...'
+        };
+      } catch (e) {
+        return {
+          success: false,
+          error: 'Ollama not found. Please install from https://ollama.ai'
+        };
+      }
+    } else {
+      // Linux
+      const paths = ['/usr/local/bin/ollama', '/usr/bin/ollama'];
+      for (const ollamaPath of paths) {
+        if (fs.existsSync(ollamaPath)) {
+          try {
+            execSync(`${ollamaPath} serve &`, { detached: true, stdio: 'ignore' });
+            return {
+              success: true,
+              message: 'Ollama server is starting...'
+            };
+          } catch (e) {
+            console.log(`Failed to start from ${ollamaPath}`);
+          }
+        }
+      }
+      return {
+        success: false,
+        error: 'Ollama not found. Please install from https://ollama.ai'
+      };
+    }
+  } catch (error) {
+    console.error('Error starting Ollama:', error);
+    return {
+      success: false,
+      error: error.message
     };
   }
 });
