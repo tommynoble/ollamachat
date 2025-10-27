@@ -483,6 +483,9 @@ ipcMain.handle('chat-message', async (event, message, model) => {
         });
       });
 
+      // Set timeout to 2 minutes (120 seconds) - models can be slow
+      req.setTimeout(120000);
+
       req.write(postData);
       req.end();
     } catch (error) {
