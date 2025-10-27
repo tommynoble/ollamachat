@@ -29,10 +29,12 @@ export default function SettingsPage() {
           
           if (configuredDriveExists || justConfigured) {
             // Drive is configured AND (mounted OR just configured) - show as configured
+            console.log('✅ Configured drive found:', result.path)
             setExternalDriveConfigured(true)
             setDrivePath(result.path || '')
           } else {
             // Drive is configured but NOT mounted - show as not configured
+            console.log('⚠️ Configured drive not mounted:', result.path)
             setExternalDriveConfigured(false)
             setDrivePath('')
           }
@@ -46,7 +48,8 @@ export default function SettingsPage() {
       }
     }
     
-    // Check immediately on mount
+    // Check immediately on mount - this loads the saved configuration
+    console.log('📀 Checking for saved drive configuration on app startup...')
     checkConfig()
 
     // Auto-refresh drives every 2 seconds to detect ejections/connections
