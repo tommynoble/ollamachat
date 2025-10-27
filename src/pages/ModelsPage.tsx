@@ -97,6 +97,22 @@ export default function ModelsPage() {
   }
 
   const handleDownloadModel = async (modelName: string) => {
+    // First, verify external drive is configured and ready
+    try {
+      const configResult = await (window as any).ipcRenderer?.invoke('check-external-drive-config')
+      if (!configResult?.configured) {
+        setDownloadProgress(prev => ({ ...prev, [modelName]: '❌ Error: External drive not configured. Go to Settings.' }))
+        return
+      }
+      if (!configResult?.path) {
+        setDownloadProgress(prev => ({ ...prev, [modelName]: '❌ Error: External drive path not found.' }))
+        return
+      }
+    } catch (error) {
+      setDownloadProgress(prev => ({ ...prev, [modelName]: '❌ Error: Cannot verify external drive.' }))
+      return
+    }
+
     setDownloadingModels(prev => new Set(prev).add(modelName))
     setDownloadProgress(prev => ({ ...prev, [modelName]: '📥 Starting download...' }))
 
