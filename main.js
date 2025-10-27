@@ -385,12 +385,10 @@ ipcMain.handle('chat-message', async (event, message, model) => {
         content: message,
       });
 
-      // Use the model name as-is (Ollama handles variants internally)
-      // If model is "deepseek-r1:8b", use just "deepseek-r1"
-      const modelName = model.split(':')[0];
-      
+      // Use the model name as-is from the dropdown
+      // The dropdown already has the correct variant (e.g., deepseek-r1:8b)
       const payload = {
-        model: modelName,
+        model: model,
         messages: messages,
         stream: false,
         options: modelConfig,
