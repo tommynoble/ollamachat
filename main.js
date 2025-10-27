@@ -992,28 +992,55 @@ ipcMain.handle('check-ollama-status', async event => {
 import sys
 import json
 import requests
+import socket
+
+def is_port_open(host, port):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(1)
+    try:
+        result = sock.connect_ex((host, port))
+        return result == 0
+    finally:
+        sock.close()
 
 try:
-    response = requests.get('http://localhost:11434/api/version', timeout=3)
-    if response.status_code == 200:
-        print(json.dumps({"running": True}))
+    # First check if port is open
+    if is_port_open('localhost', 11434):
+        try:
+            # Try to get version
+            response = requests.get('http://localhost:11434/api/version', timeout=2)
+            if response.status_code == 200:
+                print(json.dumps({"running": True}))
+            else:
+                print(json.dumps({"running": False}))
+        except:
+            # Port is open but request failed, might still be initializing
+            print(json.dumps({"running": True}))
     else:
         print(json.dumps({"running": False}))
-except:
+except Exception as e:
     print(json.dumps({"running": False}))
             `,
     ]);
 
     let output = '';
+    let errorOutput = '';
+    
     python.stdout.on('data', data => {
       output += data.toString();
+    });
+    
+    python.stderr.on('data', data => {
+      errorOutput += data.toString();
     });
 
     python.on('close', code => {
       try {
         const result = JSON.parse(output.trim());
+        console.log('Ollama status check:', result);
         resolve(result);
       } catch (e) {
+        console.log('Status check error:', errorOutput || e.message);
         resolve({ running: false });
       }
     });
