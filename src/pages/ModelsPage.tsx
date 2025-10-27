@@ -54,13 +54,26 @@ export default function ModelsPage() {
 
   const handleDownloadModel = async (modelName: string) => {
     setDownloadingModels(prev => new Set(prev).add(modelName))
-    setDownloadProgress(prev => ({ ...prev, [modelName]: 'Starting...' }))
+    setDownloadProgress(prev => ({ ...prev, [modelName]: '📥 Starting download...' }))
+
+    // Listen for download progress updates
+    const ipcRenderer = (window as any).ipcRenderer
+    if (ipcRenderer) {
+      ipcRenderer.on('download-progress', (_event: any, data: any) => {
+        if (data.model === modelName) {
+          const percent = data.percentage ? ` ${data.percentage}%` : ''
+          const speed = data.speed ? ` (${data.speed})` : ''
+          const message = `${data.message}${percent}${speed}`
+          setDownloadProgress(prev => ({ ...prev, [modelName]: message }))
+        }
+      })
+    }
 
     try {
-      const result = await (window as any).ipcRenderer?.invoke('download-model', modelName)
+      const result = await ipcRenderer?.invoke('download-model', modelName)
       if (result?.success) {
         setDownloadedModels(prev => new Set(prev).add(modelName))
-        setDownloadProgress(prev => ({ ...prev, [modelName]: 'Downloaded!' }))
+        setDownloadProgress(prev => ({ ...prev, [modelName]: '✅ Downloaded!' }))
         setTimeout(() => {
           setDownloadProgress(prev => {
             const newProgress = { ...prev }
@@ -69,10 +82,10 @@ export default function ModelsPage() {
           })
         }, 2000)
       } else {
-        setDownloadProgress(prev => ({ ...prev, [modelName]: `Error: ${result?.error}` }))
+        setDownloadProgress(prev => ({ ...prev, [modelName]: `❌ Error: ${result?.error}` }))
       }
     } catch (error) {
-      setDownloadProgress(prev => ({ ...prev, [modelName]: 'Download failed' }))
+      setDownloadProgress(prev => ({ ...prev, [modelName]: '❌ Download failed' }))
       console.error('Error downloading model:', error)
     } finally {
       setDownloadingModels(prev => {
