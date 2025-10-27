@@ -16,45 +16,41 @@ export default function SettingsPage() {
     const checkConfig = async () => {
       try {
         const result = await (window as any).ipcRenderer?.invoke('check-external-drive-config')
+        const drivesResult = await (window as any).ipcRenderer?.invoke('get-mounted-drives')
+        
+        if (drivesResult?.drives) {
+          setMountedDrives(drivesResult.drives)
+        }
+        
         if (result?.configured) {
-          // Check if the configured drive path actually exists
-          const drivesResult = await (window as any).ipcRenderer?.invoke('get-mounted-drives')
-          if (drivesResult?.drives) {
-            // Check if configured drive is in the list of mounted drives
-            const configuredDriveExists = drivesResult.drives.some(d => d.path === result.path)
-            
-            if (configuredDriveExists) {
-              setExternalDriveConfigured(true)
-              setDrivePath(result.path || '')
-            } else {
-              // Drive is configured but not mounted
-              setExternalDriveConfigured(false)
-              setDrivePath('')
-            }
-            
-            setMountedDrives(drivesResult.drives)
+          // Check if the configured drive path actually exists in mounted drives
+          const configuredDriveExists = drivesResult?.drives?.some((d: any) => d.path === result.path)
+          
+          if (configuredDriveExists) {
+            // Drive is configured AND mounted - show as configured
+            setExternalDriveConfigured(true)
+            setDrivePath(result.path || '')
           } else {
+            // Drive is configured but NOT mounted - show as not configured
             setExternalDriveConfigured(false)
             setDrivePath('')
           }
         } else {
+          // Not configured
           setExternalDriveConfigured(false)
           setDrivePath('')
-          
-          // Get mounted drives
-          const drivesResult = await (window as any).ipcRenderer?.invoke('get-mounted-drives')
-          if (drivesResult?.drives) {
-            setMountedDrives(drivesResult.drives)
-          }
         }
       } catch (error) {
         console.error('Error checking config:', error)
       }
     }
+    
+    // Check immediately on mount
     checkConfig()
 
-    // Auto-refresh drives every 1 second to detect ejections/connections quickly
-    const interval = setInterval(checkConfig, 1000)
+    // Auto-refresh drives every 2 seconds to detect ejections/connections
+    // (increased from 1 second to reduce flashing)
+    const interval = setInterval(checkConfig, 2000)
     return () => clearInterval(interval)
   }, [])
 
