@@ -13,6 +13,10 @@ export default function ModelsPage() {
     loadModels()
     checkStorageLocation()
     getDownloadedModels()
+    
+    // Auto-refresh downloaded models every 2 seconds to detect new downloads
+    const interval = setInterval(getDownloadedModels, 2000)
+    return () => clearInterval(interval)
   }, [])
 
   const loadModels = async () => {
@@ -45,7 +49,17 @@ export default function ModelsPage() {
     try {
       const result = await (window as any).ipcRenderer?.invoke('get-downloaded-models')
       if (result?.success && result.models) {
-        setDownloadedModels(new Set(result.models))
+        // Extract model names from both string and object formats
+        const modelNames = result.models.map((m: any) => {
+          if (typeof m === 'string') {
+            return m.split(':')[0] // Remove variant like :latest
+          } else if (typeof m === 'object' && m.name) {
+            return m.name.split(':')[0]
+          }
+          return null
+        }).filter((m: any) => m !== null)
+        
+        setDownloadedModels(new Set(modelNames))
       }
     } catch (error) {
       console.error('Error getting downloaded models:', error)
