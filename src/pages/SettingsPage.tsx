@@ -31,8 +31,8 @@ export default function SettingsPage() {
     }
     checkConfig()
 
-    // Auto-refresh drives every 2 seconds to detect ejections/connections
-    const interval = setInterval(checkConfig, 2000)
+    // Auto-refresh drives every 1 second to detect ejections/connections quickly
+    const interval = setInterval(checkConfig, 1000)
     return () => clearInterval(interval)
   }, [])
 

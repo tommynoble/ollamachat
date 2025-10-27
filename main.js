@@ -1497,11 +1497,14 @@ ipcMain.handle('get-mounted-drives', async () => {
     const drives = [];
 
     if (process.platform === 'darwin') {
-      // macOS: Read /Volumes directly
+      // macOS: Read /Volumes directly with fresh file system check
       try {
         const volumesPath = '/Volumes';
         if (fs.existsSync(volumesPath)) {
+          // Force fresh read of directory
           const items = fs.readdirSync(volumesPath);
+          console.log('📀 Available volumes:', items);
+          
           // List of system volumes to skip
           const systemVolumes = ['Macintosh HD', 'VM', 'Preboot', 'Update', 'xarts', 'iSCPreboot', 'Hardware', 'Data', 'home', 'mnt1'];
           
@@ -1510,25 +1513,34 @@ ipcMain.handle('get-mounted-drives', async () => {
             if (!systemVolumes.includes(item) && !item.startsWith('.')) {
               const fullPath = path.join(volumesPath, item);
               
+              // Verify the path actually exists and is accessible
               try {
-                // Try to get available space
-                const { execSync } = require('child_process');
-                const dfOutput = execSync(`df -h "${fullPath}"`, { encoding: 'utf8' });
-                const parts = dfOutput.split('\n')[1].split(/\s+/);
-                const available = parts[3] || 'Unknown';
+                fs.accessSync(fullPath, fs.constants.R_OK);
                 
-                drives.push({
-                  name: item,
-                  path: fullPath,
-                  available: available
-                });
-              } catch (e) {
-                // Still add it even if we can't get size
-                drives.push({
-                  name: item,
-                  path: fullPath,
-                  available: 'Unknown'
-                });
+                try {
+                  // Try to get available space
+                  const { execSync } = require('child_process');
+                  const dfOutput = execSync(`df -h "${fullPath}"`, { encoding: 'utf8' });
+                  const parts = dfOutput.split('\n')[1].split(/\s+/);
+                  const available = parts[3] || 'Unknown';
+                  
+                  drives.push({
+                    name: item,
+                    path: fullPath,
+                    available: available
+                  });
+                  console.log(`  ✓ Found drive: ${item} at ${fullPath}`);
+                } catch (e) {
+                  // Still add it even if we can't get size
+                  drives.push({
+                    name: item,
+                    path: fullPath,
+                    available: 'Unknown'
+                  });
+                  console.log(`  ✓ Found drive (no size): ${item}`);
+                }
+              } catch (accessError) {
+                console.log(`  ✗ Drive not accessible: ${item}`);
               }
             }
           }
@@ -1538,6 +1550,7 @@ ipcMain.handle('get-mounted-drives', async () => {
       }
     }
 
+    console.log(`📀 Returning ${drives.length} drive(s)`);
     return {
       success: true,
       drives: drives
