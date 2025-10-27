@@ -18,6 +18,23 @@ export default function SettingsPage() {
     }
     return false
   })
+  const [ollamaOnline, setOllamaOnline] = useState(false)
+
+  useEffect(() => {
+    // Check Ollama status periodically
+    const checkOllamaStatus = async () => {
+      try {
+        const result = await (window as any).ipcRenderer?.invoke('check-ollama-status')
+        setOllamaOnline(result?.running === true)
+      } catch (error) {
+        setOllamaOnline(false)
+      }
+    }
+
+    checkOllamaStatus()
+    const statusInterval = setInterval(checkOllamaStatus, 3000) // Check every 3 seconds
+    return () => clearInterval(statusInterval)
+  }, [])
 
   useEffect(() => {
     // Check if external drive is configured and get mounted drives
@@ -275,11 +292,11 @@ export default function SettingsPage() {
               
               <Button 
                 onClick={handleStartOllama}
-                disabled={isStartingOllama}
-                className="w-full gap-2"
+                disabled={isStartingOllama || ollamaOnline}
+                className={`w-full gap-2 ${ollamaOnline ? 'bg-green-600 hover:bg-green-700' : ''}`}
               >
-                <Play className={`w-4 h-4 ${isStartingOllama ? 'animate-spin' : ''}`} />
-                {isStartingOllama ? 'Starting Ollama...' : 'Start Ollama'}
+                <div className={`w-2 h-2 rounded-full ${ollamaOnline ? 'bg-green-300 animate-pulse' : ''}`} />
+                {ollamaOnline ? '🟢 Online' : isStartingOllama ? 'Starting...' : 'Start Ollama'}
               </Button>
 
               {ollamaMessage && (

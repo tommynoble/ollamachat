@@ -117,8 +117,14 @@ export default function App() {
               ? 'bg-yellow-500 animate-pulse'
               : 'bg-red-500'
           }`} />
-          <span className="text-xs font-medium text-muted-foreground">
-            {ollamaStatus === 'running' ? 'Ollama Running' : ollamaStatus === 'checking' ? 'Checking...' : 'Ollama Offline'}
+          <span className={`text-xs font-medium ${
+            ollamaStatus === 'running'
+              ? 'text-green-600'
+              : ollamaStatus === 'checking'
+              ? 'text-yellow-600'
+              : 'text-red-600'
+          }`}>
+            {ollamaStatus === 'running' ? '🟢 Online' : ollamaStatus === 'checking' ? '🟡 Checking...' : '🔴 Offline'}
           </span>
         </div>
         
