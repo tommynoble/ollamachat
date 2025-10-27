@@ -820,6 +820,16 @@ ipcMain.handle('get-downloaded-models', async () => {
     const ollamaProcess = spawn(ollamaPath, ['list'], { env });
     let output = '';
     let error = '';
+    let hasResolved = false;
+
+    // Handle spawn errors
+    ollamaProcess.on('error', (err) => {
+      if (!hasResolved) {
+        hasResolved = true;
+        console.error('Error spawning ollama:', err);
+        resolve({ success: false, error: `Failed to spawn ollama: ${err.message}`, models: [] });
+      }
+    });
 
     ollamaProcess.stdout.on('data', data => {
       output += data.toString();
@@ -830,6 +840,9 @@ ipcMain.handle('get-downloaded-models', async () => {
     });
 
     ollamaProcess.on('close', code => {
+      if (hasResolved) return; // Already resolved due to error
+      hasResolved = true;
+      
       if (code === 0) {
         try {
           const lines = output.trim().split('\n');
@@ -853,10 +866,10 @@ ipcMain.handle('get-downloaded-models', async () => {
 
           resolve({ success: true, models });
         } catch (e) {
-          resolve({ success: false, error: 'Failed to parse model list' });
+          resolve({ success: false, error: 'Failed to parse model list', models: [] });
         }
       } else {
-        resolve({ success: false, error: error || 'Failed to get model list' });
+        resolve({ success: false, error: error || 'Failed to get model list', models: [] });
       }
     });
   });
