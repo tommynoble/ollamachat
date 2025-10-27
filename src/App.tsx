@@ -327,7 +327,7 @@ export default function App() {
         <AppSidebar currentPage={currentPage} onNavigate={setCurrentPage} />
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-y-auto">
           {renderPage()}
         </div>
       </div>
