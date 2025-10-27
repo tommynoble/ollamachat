@@ -311,6 +311,18 @@ ipcMain.handle('chat-message', async (event, message, model) => {
       num_predict: 2048,
     };
 
+    // Deepseek optimizations - FAST MODE
+    if (modelName.toLowerCase().includes('deepseek')) {
+      return {
+        ...baseConfig,
+        temperature: 0.5, // Lower for faster, more focused responses
+        top_p: 0.8, // Narrower sampling for speed
+        top_k: 30, // Fewer options = faster
+        repeat_penalty: 1.0, // Less strict
+        num_predict: 512, // MUCH shorter responses for speed
+      };
+    }
+
     // Phi model optimizations
     if (modelName.toLowerCase().includes('phi')) {
       return {
@@ -340,6 +352,17 @@ ipcMain.handle('chat-message', async (event, message, model) => {
         temperature: 0.75,
         top_p: 0.92,
         top_k: 45,
+      };
+    }
+
+    // Llama2 optimizations - BALANCED
+    if (modelName.toLowerCase().includes('llama2')) {
+      return {
+        ...baseConfig,
+        temperature: 0.7,
+        top_p: 0.9,
+        top_k: 40,
+        num_predict: 1024, // Shorter for faster responses
       };
     }
 
