@@ -385,10 +385,17 @@ ipcMain.handle('chat-message', async (event, message, model) => {
         content: message,
       });
 
-      // Use the model name as-is from the dropdown
-      // The dropdown already has the correct variant (e.g., deepseek-r1:8b)
+      // Ensure model has the correct variant
+      // If model is just "deepseek-r1", try "deepseek-r1:8b"
+      let modelToUse = model;
+      if (model === 'deepseek-r1') {
+        modelToUse = 'deepseek-r1:8b';
+      } else if (model === 'llama2' && !model.includes(':')) {
+        modelToUse = 'llama2:latest';
+      }
+      
       const payload = {
-        model: model,
+        model: modelToUse,
         messages: messages,
         stream: false,
         options: modelConfig,
