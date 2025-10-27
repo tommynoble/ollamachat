@@ -9,7 +9,7 @@ import CoderPage from './pages/CoderPage'
 import SettingsPage from './pages/SettingsPage'
 import ComparisonPage from './pages/ComparisonPage'
 import OnlinePage from './pages/OnlinePage'
-import { MessageCircle, Moon, Sun, BookOpen, Zap, Code2, GitCompare } from 'lucide-react'
+import { MessageCircle, Moon, Sun, BookOpen, Code2, GitCompare } from 'lucide-react'
 import { Button } from './components/ui/button'
 
 // Get ipcRenderer from the preload script
@@ -278,12 +278,7 @@ export default function App() {
           </>
         )
       case 'analyzer':
-        return (
-          <>
-            <PageHeader title="Document Analysis" icon={Zap} />
-            <AnalyzerPage />
-          </>
-        )
+        return <AnalyzerPage />
       case 'coder':
         return (
           <>
