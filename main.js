@@ -493,7 +493,24 @@ ipcMain.handle('download-model', async (event, modelName, variant) => {
       );
     }
 
-    const ollamaProcess = spawn('ollama', ['pull', fullModelName], { env });
+    // Find ollama executable in common paths
+    const ollamaPaths = [
+      '/usr/local/bin/ollama',
+      '/opt/homebrew/bin/ollama',
+      '/usr/bin/ollama',
+    ];
+    
+    let ollamaPath = 'ollama'; // fallback to PATH
+    for (const p of ollamaPaths) {
+      if (fs.existsSync(p)) {
+        ollamaPath = p;
+        break;
+      }
+    }
+    
+    console.log(`Using ollama from: ${ollamaPath}`);
+    
+    const ollamaProcess = spawn(ollamaPath, ['pull', fullModelName], { env });
     let output = '';
     let error = '';
     let progressTimer = null;
