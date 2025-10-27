@@ -578,28 +578,56 @@ ipcMain.handle('download-model', async (event, modelName, variant) => {
     const fullModelName = variant ? `${modelName}:${variant}` : modelName;
     console.log(`Starting download of ${fullModelName}`);
 
-    // Always use external drive if configured (automatic detection)
+    // REQUIRE external drive - don't allow downloads to default location
     const env = { ...process.env };
     const configPath = path.join(__dirname, 'ollama-config.json');
+    let externalDrivePath = null;
 
     if (fs.existsSync(configPath)) {
       try {
         const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
         if (config.usingExternal && config.externalPath) {
+          // Check if the drive is actually mounted
+          if (!fs.existsSync(config.externalPath)) {
+            console.error(`❌ External drive not mounted: ${config.externalPath}`);
+            resolve({
+              success: false,
+              error: `External drive not found at ${config.externalPath}. Please connect your A005 drive.`,
+              model: fullModelName,
+            });
+            return;
+          }
+          externalDrivePath = config.externalPath;
           env.OLLAMA_MODELS = config.externalPath;
           console.log(
             `📥 Downloading ${fullModelName} to external drive: ${config.externalPath}`
           );
         } else {
-          console.log(`📥 Downloading ${fullModelName} to default location`);
+          console.error('❌ No external drive configured');
+          resolve({
+            success: false,
+            error: 'External drive not configured. Please configure a drive in Settings.',
+            model: fullModelName,
+          });
+          return;
         }
       } catch (error) {
-        console.log('Error reading external drive config, using default path');
+        console.error('❌ Error reading external drive config:', error);
+        resolve({
+          success: false,
+          error: 'Error reading drive configuration. Please reconfigure in Settings.',
+          model: fullModelName,
+        });
+        return;
       }
     } else {
-      console.log(
-        `📥 Downloading ${fullModelName} to default location (no external drive configured)`
-      );
+      console.error('❌ No external drive configured');
+      resolve({
+        success: false,
+        error: 'External drive not configured. Please configure a drive in Settings.',
+        model: fullModelName,
+      });
+      return;
     }
 
     // Find ollama executable in common paths
