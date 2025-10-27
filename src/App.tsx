@@ -303,7 +303,7 @@ export default function App() {
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={true}>
       <div className="flex h-screen w-full bg-background">
         {/* Sidebar */}
         <AppSidebar currentPage={currentPage} onNavigate={setCurrentPage} />

@@ -105,7 +105,7 @@ export function AppSidebar({ currentPage = "chat", onNavigate }: AppSidebarProps
   }
 
   return (
-    <Sidebar>
+    <Sidebar collapsible="icon">
       <SidebarContent>
         <div className="px-2 py-4 mb-4">
           <h1 className="text-lg font-bold">🤖 Ollama Chat</h1>
