@@ -57,7 +57,7 @@ export default function App() {
     }
     
     checkOllamaStatus()
-    const interval = setInterval(checkOllamaStatus, 5000) // Check every 5 seconds
+    const interval = setInterval(checkOllamaStatus, 2000) // Check every 2 seconds for faster feedback
     return () => clearInterval(interval)
   }, [])
 

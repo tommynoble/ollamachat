@@ -81,14 +81,17 @@ export default function SettingsPage() {
       const result = await (window as any).ipcRenderer?.invoke('start-ollama')
       if (result?.success) {
         setOllamaMessage('✓ Ollama started! Give it a moment to fully initialize.')
-        setTimeout(() => setOllamaMessage(''), 5000)
+        // Keep message visible for longer so user sees success
+        setTimeout(() => setOllamaMessage(''), 8000)
+        // Disable button for a bit after successful start
+        setTimeout(() => setIsStartingOllama(false), 3000)
       } else {
-        setOllamaMessage(`Error: ${result?.error}`)
+        setOllamaMessage(`Error starting Ollama: ${result?.error}`)
+        setIsStartingOllama(false)
       }
     } catch (error) {
-      setOllamaMessage('Failed to start Ollama')
       console.error('Error starting Ollama:', error)
-    } finally {
+      setOllamaMessage('Error starting Ollama')
       setIsStartingOllama(false)
     }
   }
