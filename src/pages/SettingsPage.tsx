@@ -14,7 +14,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     // Check if external drive is configured and get mounted drives
-    const checkConfig = async () => {
+    const checkConfig = async (isInitialCheck = false) => {
       try {
         const result = await (window as any).ipcRenderer?.invoke('check-external-drive-config')
         const drivesResult = await (window as any).ipcRenderer?.invoke('get-mounted-drives')
@@ -32,6 +32,22 @@ export default function SettingsPage() {
             console.log('✅ Configured drive found:', result.path)
             setExternalDriveConfigured(true)
             setDrivePath(result.path || '')
+            
+            // Auto-start Ollama on app startup if drive is configured and mounted
+            if (isInitialCheck && configuredDriveExists && !ollamaMessage) {
+              console.log('🚀 Auto-starting Ollama with previously configured drive...')
+              setOllamaMessage('Auto-starting Ollama with external drive...')
+              
+              try {
+                const ollamaResult = await (window as any).ipcRenderer?.invoke('start-ollama')
+                if (ollamaResult?.success) {
+                  setOllamaMessage('✓ Ollama started with external drive!')
+                  setTimeout(() => setOllamaMessage(''), 3000)
+                }
+              } catch (error) {
+                console.error('Error auto-starting Ollama:', error)
+              }
+            }
           } else {
             // Drive is configured but NOT mounted - show as not configured
             console.log('⚠️ Configured drive not mounted:', result.path)
@@ -50,13 +66,13 @@ export default function SettingsPage() {
     
     // Check immediately on mount - this loads the saved configuration
     console.log('📀 Checking for saved drive configuration on app startup...')
-    checkConfig()
+    checkConfig(true)
 
     // Auto-refresh drives every 2 seconds to detect ejections/connections
     // (increased from 1 second to reduce flashing)
-    const interval = setInterval(checkConfig, 2000)
+    const interval = setInterval(() => checkConfig(false), 2000)
     return () => clearInterval(interval)
-  }, [justConfigured])
+  }, [justConfigured, ollamaMessage])
 
   const handleStartOllama = async () => {
     setIsStartingOllama(true)

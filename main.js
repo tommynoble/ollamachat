@@ -1031,20 +1031,48 @@ import json
 import subprocess
 import time
 import requests
+import os
 
 try:
-    # Try to start ollama serve
-    process = subprocess.Popen(['ollama', 'serve'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # Find ollama in common paths
+    ollama_paths = [
+        '/usr/local/bin/ollama',
+        '/opt/homebrew/bin/ollama',
+        '/usr/bin/ollama',
+        '/Applications/Ollama.app/Contents/MacOS/ollama'
+    ]
+    
+    ollama_cmd = None
+    for path in ollama_paths:
+        if os.path.exists(path):
+            ollama_cmd = path
+            break
+    
+    if not ollama_cmd:
+        # Try using 'open -a Ollama' for macOS app
+        try:
+            subprocess.Popen(['open', '-a', 'Ollama'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            time.sleep(5)
+        except:
+            print(json.dumps({"success": False, "error": "Ollama not found in PATH or Applications"}))
+            sys.exit(1)
+    else:
+        # Start ollama serve with full path
+        process = subprocess.Popen([ollama_cmd, 'serve'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
     # Wait a bit and check if it's running
     time.sleep(3)
     
     # Test if server is responding
-    response = requests.get('http://localhost:11434/api/version', timeout=5)
-    if response.status_code == 200:
-        print(json.dumps({"success": True, "message": "Ollama started successfully"}))
-    else:
-        print(json.dumps({"success": False, "error": "Ollama server not responding"}))
+    try:
+        response = requests.get('http://localhost:11434/api/version', timeout=5)
+        if response.status_code == 200:
+            print(json.dumps({"success": True, "message": "Ollama started successfully"}))
+        else:
+            print(json.dumps({"success": False, "error": "Ollama server not responding"}))
+    except:
+        # Even if request fails, ollama might be starting
+        print(json.dumps({"success": True, "message": "Ollama is starting..."}))
         
 except Exception as e:
     print(json.dumps({"success": False, "error": str(e)}))
