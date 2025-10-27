@@ -1491,77 +1491,55 @@ ipcMain.handle('start-ollama', async () => {
   }
 });
 
-// Get mounted drives on macOS - list all volumes except system ones
+// Get mounted drives using Python (original working method)
 ipcMain.handle('get-mounted-drives', async () => {
-  try {
-    const drives = [];
+  return new Promise((resolve) => {
+    const { spawn } = require('child_process');
+    
+    const python = spawn('python3', [
+      '-c',
+      `
+import sys
+import os
+import json
+sys.path.append('${__dirname}')
+from drive_detector import detect_external_drives
 
-    if (process.platform === 'darwin') {
-      // macOS: Read /Volumes directly with fresh file system check
-      try {
-        const volumesPath = '/Volumes';
-        if (fs.existsSync(volumesPath)) {
-          // Force fresh read of directory
-          const items = fs.readdirSync(volumesPath);
-          console.log('📀 Available volumes:', items);
-          
-          // List of system volumes to skip
-          const systemVolumes = ['Macintosh HD', 'VM', 'Preboot', 'Update', 'xarts', 'iSCPreboot', 'Hardware', 'Data', 'home', 'mnt1'];
-          
-          for (const item of items) {
-            // Skip system volumes and hidden files
-            if (!systemVolumes.includes(item) && !item.startsWith('.')) {
-              const fullPath = path.join(volumesPath, item);
-              
-              // Verify the path actually exists and is accessible
-              try {
-                fs.accessSync(fullPath, fs.constants.R_OK);
-                
-                try {
-                  // Try to get available space
-                  const { execSync } = require('child_process');
-                  const dfOutput = execSync(`df -h "${fullPath}"`, { encoding: 'utf8' });
-                  const parts = dfOutput.split('\n')[1].split(/\s+/);
-                  const available = parts[3] || 'Unknown';
-                  
-                  drives.push({
-                    name: item,
-                    path: fullPath,
-                    available: available
-                  });
-                  console.log(`  ✓ Found drive: ${item} at ${fullPath}`);
-                } catch (e) {
-                  // Still add it even if we can't get size
-                  drives.push({
-                    name: item,
-                    path: fullPath,
-                    available: 'Unknown'
-                  });
-                  console.log(`  ✓ Found drive (no size): ${item}`);
-                }
-              } catch (accessError) {
-                console.log(`  ✗ Drive not accessible: ${item}`);
-              }
-            }
-          }
+try:
+    drives = detect_external_drives()
+    print(json.dumps({"success": True, "drives": drives}))
+except Exception as e:
+    print(json.dumps({"success": False, "error": str(e)}))
+      `,
+    ]);
+
+    let output = '';
+    let error = '';
+
+    python.stdout.on('data', data => {
+      output += data.toString();
+    });
+
+    python.stderr.on('data', data => {
+      error += data.toString();
+    });
+
+    python.on('close', code => {
+      if (code === 0) {
+        try {
+          const result = JSON.parse(output.trim());
+          console.log('📀 Detected drives:', result.drives);
+          resolve(result);
+        } catch (e) {
+          console.log('Failed to parse drive detection response');
+          resolve({ success: false, error: 'Failed to parse response', drives: [] });
         }
-      } catch (error) {
-        console.log('Error reading /Volumes:', error.message);
+      } else {
+        console.log('Drive detection failed:', error);
+        resolve({ success: false, error: error || 'Drive detection failed', drives: [] });
       }
-    }
-
-    console.log(`📀 Returning ${drives.length} drive(s)`);
-    return {
-      success: true,
-      drives: drives
-    };
-  } catch (error) {
-    console.error('Error getting mounted drives:', error);
-    return {
-      success: false,
-      drives: []
-    };
-  }
+    });
+  });
 });
 
 // Check external drive configuration
