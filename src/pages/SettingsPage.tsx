@@ -24,8 +24,11 @@ export default function SettingsPage() {
         }
         
         if (result?.configured) {
-          // Check if the configured drive path actually exists in mounted drives
-          const configuredDriveExists = drivesResult?.drives?.some((d: any) => d.path === result.path)
+          // Extract the drive path (e.g., /Volumes/A005 from /Volumes/A005/ollama-models)
+          const drivePath = result.path.split('/ollama-models')[0]
+          
+          // Check if the drive itself is mounted
+          const configuredDriveExists = drivesResult?.drives?.some((d: any) => d.path === drivePath)
           
           if (configuredDriveExists || justConfigured) {
             // Drive is configured AND (mounted OR just configured) - show as configured
