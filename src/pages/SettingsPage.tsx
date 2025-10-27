@@ -263,17 +263,22 @@ export default function SettingsPage() {
                 disabled={isStartingOllama}
                 className="w-full gap-2"
               >
-                <Play className="w-4 h-4" />
-                {isStartingOllama ? 'Starting...' : 'Start Ollama'}
+                <Play className={`w-4 h-4 ${isStartingOllama ? 'animate-spin' : ''}`} />
+                {isStartingOllama ? 'Starting Ollama...' : 'Start Ollama'}
               </Button>
 
               {ollamaMessage && (
-                <div className={`mt-3 p-3 rounded-lg text-sm ${
+                <div className={`mt-3 p-4 rounded-lg text-sm font-medium flex items-center gap-2 ${
                   ollamaMessage.includes('✓')
-                    ? 'bg-green-500/10 text-green-700 border border-green-500/20'
-                    : 'bg-red-500/10 text-red-700 border border-red-500/20'
+                    ? 'bg-green-500/10 text-green-700 border border-green-500/30'
+                    : ollamaMessage.includes('Auto-starting') || ollamaMessage.includes('Starting')
+                    ? 'bg-blue-500/10 text-blue-700 border border-blue-500/30'
+                    : 'bg-red-500/10 text-red-700 border border-red-500/30'
                 }`}>
-                  {ollamaMessage}
+                  {ollamaMessage.includes('✓') && <CheckCircle className="w-4 h-4 flex-shrink-0" />}
+                  {(ollamaMessage.includes('Auto-starting') || ollamaMessage.includes('Starting')) && <Play className="w-4 h-4 animate-spin flex-shrink-0" />}
+                  {ollamaMessage.includes('Error') && <span className="text-lg">⚠️</span>}
+                  <span>{ollamaMessage}</span>
                 </div>
               )}
             </div>

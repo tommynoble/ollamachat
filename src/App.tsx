@@ -28,6 +28,7 @@ export default function App() {
     }
     return true
   })
+  const [ollamaStatus, setOllamaStatus] = useState<'running' | 'offline' | 'checking'>('checking')
 
   useEffect(() => {
     // Apply theme to document
@@ -43,6 +44,21 @@ export default function App() {
   useEffect(() => {
     // Load available models on startup
     loadModels()
+    
+    // Check Ollama status periodically
+    const checkOllamaStatus = async () => {
+      if (!ipcRenderer) return
+      try {
+        const result = await ipcRenderer.invoke('check-ollama-status')
+        setOllamaStatus(result.running ? 'running' : 'offline')
+      } catch (error) {
+        setOllamaStatus('offline')
+      }
+    }
+    
+    checkOllamaStatus()
+    const interval = setInterval(checkOllamaStatus, 5000) // Check every 5 seconds
+    return () => clearInterval(interval)
   }, [])
 
   const loadModels = async () => {
@@ -91,14 +107,30 @@ export default function App() {
         <Icon className="w-6 h-6" />
         <h1 className="text-xl font-semibold">{title}</h1>
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => setIsDarkMode(!isDarkMode)}
-        className="rounded-full"
-      >
-        {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-      </Button>
+      <div className="flex items-center gap-4">
+        {/* Ollama Status Indicator */}
+        <div className="flex items-center gap-2">
+          <div className={`w-3 h-3 rounded-full ${
+            ollamaStatus === 'running' 
+              ? 'bg-green-500 animate-pulse' 
+              : ollamaStatus === 'checking'
+              ? 'bg-yellow-500 animate-pulse'
+              : 'bg-red-500'
+          }`} />
+          <span className="text-xs font-medium text-muted-foreground">
+            {ollamaStatus === 'running' ? 'Ollama Running' : ollamaStatus === 'checking' ? 'Checking...' : 'Ollama Offline'}
+          </span>
+        </div>
+        
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsDarkMode(!isDarkMode)}
+          className="rounded-full"
+        >
+          {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        </Button>
+      </div>
     </div>
   )
 
