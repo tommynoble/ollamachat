@@ -385,8 +385,11 @@ ipcMain.handle('chat-message', async (event, message, model) => {
         content: message,
       });
 
+      // Ensure model has a variant (e.g., deepseek-r1 -> deepseek-r1:latest)
+      const modelWithVariant = model.includes(':') ? model : `${model}:latest`;
+      
       const payload = {
-        model: model,
+        model: modelWithVariant,
         messages: messages,
         stream: false,
         options: modelConfig,
