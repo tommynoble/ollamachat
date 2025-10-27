@@ -434,7 +434,7 @@ ipcMain.handle('chat-message', async (event, message, model) => {
 
               resolve({
                 success: true,
-                message: assistantMessage,
+                response: assistantMessage,
                 model: model,
                 tokens: response.eval_count || 0,
                 duration: response.total_duration || 0,
