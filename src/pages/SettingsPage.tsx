@@ -10,6 +10,7 @@ export default function SettingsPage() {
   const [isStartingOllama, setIsStartingOllama] = useState(false)
   const [ollamaMessage, setOllamaMessage] = useState('')
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [justConfigured, setJustConfigured] = useState(false)
 
   useEffect(() => {
     // Check if external drive is configured and get mounted drives
@@ -26,8 +27,8 @@ export default function SettingsPage() {
           // Check if the configured drive path actually exists in mounted drives
           const configuredDriveExists = drivesResult?.drives?.some((d: any) => d.path === result.path)
           
-          if (configuredDriveExists) {
-            // Drive is configured AND mounted - show as configured
+          if (configuredDriveExists || justConfigured) {
+            // Drive is configured AND (mounted OR just configured) - show as configured
             setExternalDriveConfigured(true)
             setDrivePath(result.path || '')
           } else {
@@ -52,7 +53,7 @@ export default function SettingsPage() {
     // (increased from 1 second to reduce flashing)
     const interval = setInterval(checkConfig, 2000)
     return () => clearInterval(interval)
-  }, [])
+  }, [justConfigured])
 
   const handleStartOllama = async () => {
     setIsStartingOllama(true)
@@ -92,6 +93,10 @@ export default function SettingsPage() {
         setExternalDriveConfigured(true)
         setDrivePath(result.modelsPath)
         setSelectedDrive(null)
+        setJustConfigured(true)
+        
+        // Keep the configured state for 10 seconds
+        setTimeout(() => setJustConfigured(false), 10000)
         
         // Auto-start Ollama after configuration
         console.log('🚀 Auto-starting Ollama with external drive...')
