@@ -92,9 +92,34 @@ export default function SettingsPage() {
       console.log('🔧 Configure result:', result)
 
       if (result?.success) {
+        console.log('✅ Drive configured successfully!')
         setExternalDriveConfigured(true)
         setDrivePath(result.modelsPath)
         setSelectedDrive(null)
+        
+        // Force a refresh after a short delay to ensure the configured state is visible
+        setTimeout(() => {
+          console.log('🔄 Force refreshing after configuration...')
+          const checkConfig = async () => {
+            try {
+              const configResult = await (window as any).ipcRenderer?.invoke('check-external-drive-config')
+              const drivesResult = await (window as any).ipcRenderer?.invoke('get-mounted-drives')
+              
+              if (configResult?.configured && drivesResult?.drives) {
+                const configuredDriveExists = drivesResult.drives.some((d: any) => d.path === configResult.path)
+                console.log('✅ Configured drive exists:', configuredDriveExists)
+                if (configuredDriveExists) {
+                  setExternalDriveConfigured(true)
+                  setDrivePath(configResult.path)
+                }
+                setMountedDrives(drivesResult.drives)
+              }
+            } catch (error) {
+              console.error('Error in force refresh:', error)
+            }
+          }
+          checkConfig()
+        }, 1000)
       }
     } catch (error) {
       console.error('Error configuring drive:', error)
