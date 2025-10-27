@@ -27,7 +27,7 @@ function initializeExternalDriveSettings() {
   return null;
 }
 
-// Auto-download Ollama if not installed
+// Auto-download Ollama if not installed (only once)
 async function ensureOllamaInstalled() {
   const ollamaPaths = [
     '/usr/local/bin/ollama',
@@ -35,7 +35,7 @@ async function ensureOllamaInstalled() {
     '/usr/bin/ollama',
   ];
   
-  // Check if Ollama already exists
+  // Check if Ollama already exists in system
   for (const ollamaPath of ollamaPaths) {
     if (fs.existsSync(ollamaPath)) {
       console.log('✅ Ollama found at:', ollamaPath);
@@ -43,11 +43,9 @@ async function ensureOllamaInstalled() {
     }
   }
   
-  // Ollama not found, download it
-  console.log('📥 Ollama not found. Downloading...');
-  
   const ollamaDir = path.join(app.getPath('home'), '.ollamachat');
   const ollamaPath = path.join(ollamaDir, 'ollama');
+  const flagFile = path.join(ollamaDir, '.ollama-download-attempted');
   
   // Create directory if it doesn't exist
   if (!fs.existsSync(ollamaDir)) {
@@ -60,12 +58,23 @@ async function ensureOllamaInstalled() {
     return ollamaPath;
   }
   
+  // Check if we already attempted download (only try once)
+  if (fs.existsSync(flagFile)) {
+    console.log('⚠️ Ollama download was already attempted. Skipping.');
+    return null;
+  }
+  
   try {
+    // Mark that we're attempting download (only once)
+    fs.writeFileSync(flagFile, new Date().toISOString());
+    
+    console.log('📥 Ollama not found. Auto-downloading...');
+    
     // Download Ollama for macOS
     const downloadUrl = 'https://ollama.ai/download/ollama-darwin.zip';
     const zipPath = path.join(ollamaDir, 'ollama-darwin.zip');
     
-    console.log('⏳ Downloading Ollama from:', downloadUrl);
+    console.log('⏳ Downloading Ollama (~100MB)...');
     
     await new Promise((resolve, reject) => {
       https.get(downloadUrl, (response) => {
@@ -77,11 +86,13 @@ async function ensureOllamaInstalled() {
               else resolve();
             });
           }).on('error', reject);
-        } else {
+        } else if (response.statusCode === 200) {
           pipeline(response, createWriteStream(zipPath), (err) => {
             if (err) reject(err);
             else resolve();
           });
+        } else {
+          reject(new Error(`HTTP ${response.statusCode}`));
         }
       }).on('error', reject);
     });
@@ -89,18 +100,31 @@ async function ensureOllamaInstalled() {
     console.log('✅ Downloaded. Extracting...');
     
     // Extract zip file
-    execSync(`cd "${ollamaDir}" && unzip -o ollama-darwin.zip`, { stdio: 'ignore' });
+    try {
+      execSync(`cd "${ollamaDir}" && unzip -o ollama-darwin.zip`, { stdio: 'ignore' });
+    } catch (e) {
+      throw new Error('Failed to extract Ollama zip file');
+    }
     
     // Make executable
-    execSync(`chmod +x "${ollamaPath}"`, { stdio: 'ignore' });
+    try {
+      execSync(`chmod +x "${ollamaPath}"`, { stdio: 'ignore' });
+    } catch (e) {
+      throw new Error('Failed to make Ollama executable');
+    }
     
     // Clean up zip
-    fs.unlinkSync(zipPath);
+    try {
+      fs.unlinkSync(zipPath);
+    } catch (e) {
+      console.log('Warning: Could not delete zip file');
+    }
     
-    console.log('✅ Ollama installed at:', ollamaPath);
+    console.log('✅ Ollama installed successfully at:', ollamaPath);
     return ollamaPath;
   } catch (error) {
-    console.error('❌ Failed to download Ollama:', error.message);
+    console.error('❌ Failed to auto-download Ollama:', error.message);
+    console.error('📥 Please manually install Ollama from: https://ollama.ai/download');
     return null;
   }
 }
