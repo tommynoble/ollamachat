@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from './ui/button'
-import { Send, Paperclip, FileText } from 'lucide-react'
+import { Send, Paperclip, FileText, Image } from 'lucide-react'
 
 interface Message {
   role: string
@@ -62,12 +62,12 @@ function TypewriterMessage({ message }: { message: Message }) {
   }, [message])
 
   return (
-    <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
+    <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} ${message.role === 'user' ? 'mb-2' : 'mb-4'}`}>
       <div
-        className={`max-w-2xl px-6 py-3 rounded-lg ${
+        className={`px-4 py-2 ${
           message.role === 'user'
-            ? 'bg-primary text-primary-foreground'
-            : 'text-foreground'
+            ? 'bg-card text-white rounded-2xl max-w-lg opacity-90'
+            : 'max-w-2xl text-foreground rounded-2xl px-6 py-3'
         }`}
       >
         <div className="text-base whitespace-pre-wrap leading-relaxed space-y-2">
@@ -248,7 +248,7 @@ export default function ChatWindow({ messages, onSendMessage, isLoading = false 
       <div className="border-t border-border bg-card p-4 relative">
         {/* Attachments Popup - Right Side */}
         {showDocuments && (
-          <div className="absolute bottom-full right-4 mb-2 bg-card border border-border rounded-lg shadow-lg p-4 w-72 z-50">
+          <div className="absolute bottom-full right-4 mb-2 bg-card border border-border rounded-3xl shadow-lg p-4 w-72 z-50">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-sm">Attachments</h3>
               <button
@@ -278,7 +278,7 @@ export default function ChatWindow({ messages, onSendMessage, isLoading = false 
                 size="sm"
                 className="w-full justify-start gap-2 text-xs"
               >
-                <ImageIcon className="w-4 h-4" />
+                <Image className="w-4 h-4" />
                 Upload Image
               </Button>
             </div>
@@ -314,8 +314,8 @@ export default function ChatWindow({ messages, onSendMessage, isLoading = false 
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Type your message... (Shift+Enter for new line)"
-            className="flex-1 px-4 py-2 bg-input border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+            placeholder="Type your message..."
+            className="flex-1 px-4 py-2 bg-input border border-border rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-ring"
             rows={3}
             disabled={isLoading}
           />

@@ -494,6 +494,7 @@ SPECIAL INSTRUCTIONS FOR CODE LLAMA:
         port: 11434,
         path: '/api/chat',
         method: 'POST',
+        timeout: 300000, // 5 minute timeout for long responses
         headers: {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(postData),
@@ -531,6 +532,12 @@ SPECIAL INSTRUCTIONS FOR CODE LLAMA:
           try {
             if (res.statusCode === 200) {
               const assistantMessage = fullResponse || 'No response received';
+              
+              // Log response size for debugging
+              console.log(`✅ Response received: ${assistantMessage.length} characters`);
+              if (assistantMessage.length < 100) {
+                console.warn('⚠️ WARNING: Response seems very short!');
+              }
 
               // Update conversation history
               history.push({ role: 'user', content: message });
@@ -560,6 +567,16 @@ SPECIAL INSTRUCTIONS FOR CODE LLAMA:
               error: `Failed to parse response: ${parseError.message}`,
             });
           }
+        });
+
+        // Handle timeout
+        req.on('timeout', () => {
+          console.error('❌ Request timeout - response took too long');
+          req.destroy();
+          resolve({
+            success: false,
+            error: 'Request timeout - response took too long',
+          });
         });
       });
 
