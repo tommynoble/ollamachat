@@ -309,7 +309,7 @@ ipcMain.handle('chat-message', async (event, message, model) => {
       top_p: 0.9,
       top_k: 40,
       repeat_penalty: 1.1,
-      num_predict: 2048,
+      num_predict: 8192, // Maximum length for complete responses
     };
 
     // Deepseek optimizations - FAST MODE
@@ -362,7 +362,7 @@ ipcMain.handle('chat-message', async (event, message, model) => {
         temperature: 0.7,
         top_p: 0.9,
         top_k: 40,
-        num_predict: 4096, // Much longer responses for comprehensive answers
+        num_predict: 8192, // Even longer responses - no truncation
       };
       return baseConfig;
     }
@@ -483,7 +483,7 @@ SPECIAL INSTRUCTIONS FOR CODE LLAMA:
       const payload = {
         model: modelToUse,
         messages: messages,
-        stream: false,  // Use non-streaming for stability
+        stream: true,  // Enable streaming like official Ollama app
         options: modelConfig,
       };
 
@@ -501,26 +501,44 @@ SPECIAL INSTRUCTIONS FOR CODE LLAMA:
       };
 
       const req = http.request(options, res => {
-        let data = '';
+        let fullResponse = '';
+        let buffer = '';
 
         res.on('data', chunk => {
-          data += chunk.toString();
+          buffer += chunk.toString();
+          const lines = buffer.split('\n');
+          
+          // Process complete lines
+          for (let i = 0; i < lines.length - 1; i++) {
+            const line = lines[i].trim();
+            if (line) {
+              try {
+                const parsed = JSON.parse(line);
+                if (parsed.message?.content) {
+                  fullResponse += parsed.message.content;
+                }
+              } catch (e) {
+                // Skip invalid JSON lines
+              }
+            }
+          }
+          
+          // Keep the last incomplete line in buffer
+          buffer = lines[lines.length - 1];
         });
 
         res.on('end', () => {
           try {
             if (res.statusCode === 200) {
-              const response = JSON.parse(data);
-              const assistantMessage =
-                response.message?.content || 'No response received';
+              const assistantMessage = fullResponse || 'No response received';
 
               // Update conversation history
               history.push({ role: 'user', content: message });
               history.push({ role: 'assistant', content: assistantMessage });
 
-              // Keep history manageable (last 20 exchanges = 40 messages)
-              if (history.length > 40) {
-                history = history.slice(-40);
+              // Keep history manageable (last 15 exchanges = 30 messages)
+              if (history.length > 30) {
+                history = history.slice(-30);
               }
 
               global.conversationHistory.set(conversationKey, history);
@@ -529,13 +547,11 @@ SPECIAL INSTRUCTIONS FOR CODE LLAMA:
                 success: true,
                 response: assistantMessage,
                 model: model,
-                tokens: response.eval_count || 0,
-                duration: response.total_duration || 0,
               });
             } else {
               resolve({
                 success: false,
-                error: `HTTP ${res.statusCode}: ${data}`,
+                error: `HTTP ${res.statusCode}`,
               });
             }
           } catch (parseError) {

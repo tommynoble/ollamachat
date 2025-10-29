@@ -62,24 +62,26 @@ function TypewriterMessage({ message }: { message: Message }) {
   }, [message])
 
   return (
-    <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
       <div
-        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+        className={`max-w-2xl px-6 py-3 rounded-lg ${
           message.role === 'user'
             ? 'bg-primary text-primary-foreground'
-            : 'bg-muted text-muted-foreground'
+            : 'text-foreground'
         }`}
       >
-        <p className="text-sm whitespace-pre-wrap">{displayedContent}</p>
-        {!isComplete && message.role === 'assistant' && (
-          <motion.span
-            animate={{ opacity: [1, 0.3, 1] }}
-            transition={{ duration: 0.8, repeat: Infinity }}
-            className="inline-block"
-          >
-            ▌
-          </motion.span>
-        )}
+        <div className="text-base whitespace-pre-wrap leading-relaxed space-y-2">
+          {displayedContent}
+          {!isComplete && message.role === 'assistant' && (
+            <motion.span
+              animate={{ opacity: [1, 0.3, 1] }}
+              transition={{ duration: 0.8, repeat: Infinity }}
+              className="inline-block"
+            >
+              ▌
+            </motion.span>
+          )}
+        </div>
       </div>
     </div>
   )
