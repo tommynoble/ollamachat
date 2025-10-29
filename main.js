@@ -419,7 +419,13 @@ ACCURACY GUIDELINES:
 - Prefer concise, specific claims; avoid guessing names, dates, or figures
 - If giving a list of steps, ensure each step is actionable and verifiable
 - Cite sources when making factual claims
-- Say "I don't know" rather than guessing`;
+- Say "I don't know" rather than guessing
+
+FORMAT RULES:
+- Always answer in GitHub-flavored Markdown.
+- Use numbered section headings (## 1., ## 2., …).
+- For each item, use **bold** labels followed by clear text.
+- Use bullet lists where helpful. No HTML.`;
 
     if (modelName.toLowerCase().includes('deepseek')) {
       return `${basePrompt}

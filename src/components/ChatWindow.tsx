@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from './ui/button'
 import { Send, Paperclip, FileText, Image } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface Message {
   role: string
@@ -21,31 +23,36 @@ interface ChatWindowProps {
   isLoading?: boolean
 }
 
-// Typewriter animation component using Framer Motion
+// Helper: Auto-close dangling code fences
+function closeDanglingFence(s: string) {
+  const fences = (s.match(/```/g) || []).length
+  return fences % 2 === 1 ? s + '\n```' : s
+}
+
+// Message component - User messages with typewriter, Assistant with buffered Markdown
 function TypewriterMessage({ message }: { message: Message }) {
   const [displayedContent, setDisplayedContent] = useState('')
   const [isComplete, setIsComplete] = useState(false)
+  const bufferRef = useRef('')
+  const renderTimeoutRef = useRef<NodeJS.Timeout>()
 
   useEffect(() => {
     if (message.role === 'user') {
-      // User messages display instantly
+      // User messages display instantly (no typewriter)
       setDisplayedContent(message.content)
       setIsComplete(true)
       return
     }
 
-    // Assistant messages have typewriter effect with Motion
+    // Assistant messages: typewriter effect for smooth appearance
     let index = 0
     setDisplayedContent('')
     setIsComplete(false)
 
     const interval = setInterval(() => {
       if (index < message.content.length) {
-        // Handle emojis and multi-byte characters properly
         const char = message.content[index]
-        // Check if it's a surrogate pair (emoji)
         if (char.charCodeAt(0) >= 0xD800 && char.charCodeAt(0) <= 0xDBFF) {
-          // It's a high surrogate, include the next character too
           setDisplayedContent(message.content.substring(0, index + 2))
           index += 2
         } else {
@@ -56,7 +63,7 @@ function TypewriterMessage({ message }: { message: Message }) {
         setIsComplete(true)
         clearInterval(interval)
       }
-    }, 15) // Adjust speed here (lower = faster)
+    }, 15)
 
     return () => clearInterval(interval)
   }, [message])
@@ -70,18 +77,42 @@ function TypewriterMessage({ message }: { message: Message }) {
             : 'max-w-2xl text-foreground rounded-2xl px-6 py-3'
         }`}
       >
-        <div className="text-base whitespace-pre-wrap leading-8 space-y-4">
-          {displayedContent}
-          {!isComplete && message.role === 'assistant' && (
-            <motion.span
-              animate={{ opacity: [1, 0.3, 1] }}
-              transition={{ duration: 0.8, repeat: Infinity }}
-              className="inline-block"
+        {message.role === 'user' ? (
+          // User: plain text with typewriter
+          <div className="text-base leading-relaxed">
+            {displayedContent}
+          </div>
+        ) : (
+          // Assistant: Markdown rendering
+          <div className="prose prose-invert max-w-none text-base">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              skipHtml
+              components={{
+                h2: (p) => <h2 className="text-xl font-bold mt-6 mb-3" {...p} />,
+                h3: (p) => <h3 className="text-lg font-semibold mt-4 mb-2" {...p} />,
+                ul: (p) => <ul className="list-disc pl-6 space-y-2" {...p} />,
+                ol: (p) => <ol className="list-decimal pl-6 space-y-2" {...p} />,
+                li: (p) => <li className="leading-relaxed" {...p} />,
+                strong: (p) => <strong className="font-semibold" {...p} />,
+                p: (p) => <p className="leading-relaxed mb-3" {...p} />,
+                code: (p) => <code className="px-1.5 py-0.5 rounded bg-muted/40 font-mono text-sm" {...p} />,
+                pre: (p) => <pre className="p-3 rounded bg-muted/40 overflow-x-auto mb-3" {...p} />,
+              }}
             >
-              ▌
-            </motion.span>
-          )}
-        </div>
+              {closeDanglingFence(displayedContent)}
+            </ReactMarkdown>
+          </div>
+        )}
+        {!isComplete && message.role === 'assistant' && (
+          <motion.span
+            animate={{ opacity: [1, 0.3, 1] }}
+            transition={{ duration: 0.8, repeat: Infinity }}
+            className="inline-block"
+          >
+            ▌
+          </motion.span>
+        )}
       </div>
     </div>
   )
