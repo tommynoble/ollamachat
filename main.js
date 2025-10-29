@@ -174,9 +174,11 @@ function createWindow() {
   });
 
   // Load React app - use Vite dev server in development, built files in production
-  const isDev = process.env.NODE_ENV === 'development';
+  // Check if dist folder exists (production) or use dev server
+  const distPath = path.join(__dirname, 'dist', 'index.html');
+  const hasDistFolder = fs.existsSync(distPath);
   
-  if (isDev) {
+  if (!hasDistFolder) {
     // In development, load from Vite dev server (try multiple ports)
     mainWindow.loadURL('http://localhost:5174').catch(() => {
       mainWindow.loadURL('http://localhost:5173').catch(() => {
@@ -184,8 +186,9 @@ function createWindow() {
       });
     });
   } else {
-    // In production, load from built React files
-    mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
+    // In production, load from built React files using file:// protocol with absolute path
+    const fileUrl = `file://${distPath}`;
+    mainWindow.loadURL(fileUrl);
   }
 
   // Show window when ready
@@ -208,10 +211,8 @@ function createWindow() {
     console.error('Render process gone:', details);
   });
 
-  // Open DevTools in development
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.webContents.openDevTools();
-  }
+  // DevTools can be opened manually with Cmd+Option+I if needed
+  // Removed auto-open for cleaner UI
 
 
 

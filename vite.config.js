@@ -5,6 +5,7 @@ import path from 'path';
 export default defineConfig({
   root: '.',
   publicDir: 'assets',
+  base: './',
   plugins: [react()],
   resolve: {
     alias: {

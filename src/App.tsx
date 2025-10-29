@@ -182,7 +182,7 @@ export default function App() {
               ? 'text-yellow-600'
               : 'text-red-600'
           }`}>
-            {ollamaStatus === 'running' ? '🟢 Online' : ollamaStatus === 'checking' ? '🟡 Checking...' : '🔴 Offline'}
+            {ollamaStatus === 'running' ? 'Online' : ollamaStatus === 'checking' ? 'Checking...' : 'Offline'}
           </span>
         </div>
         
@@ -249,7 +249,7 @@ export default function App() {
                       ? 'text-yellow-600'
                       : 'text-red-600'
                   }`}>
-                    {ollamaStatus === 'running' ? '🟢 Online' : ollamaStatus === 'checking' ? '🟡 Checking...' : '🔴 Offline'}
+                    {ollamaStatus === 'running' ? 'Online' : ollamaStatus === 'checking' ? 'Checking...' : 'Offline'}
                   </span>
                 </div>
                 
