@@ -484,7 +484,10 @@ SPECIAL INSTRUCTIONS FOR CODE LLAMA:
         model: modelToUse,
         messages: messages,
         stream: true,  // Enable streaming like official Ollama app
-        options: modelConfig,
+        options: {
+          ...modelConfig,
+          num_ctx: 4096, // Increase context window for longer responses
+        },
       };
 
       const postData = JSON.stringify(payload);
@@ -517,6 +520,10 @@ SPECIAL INSTRUCTIONS FOR CODE LLAMA:
                 const parsed = JSON.parse(line);
                 if (parsed.message?.content) {
                   fullResponse += parsed.message.content;
+                }
+                // Log if this is the last chunk (done: true)
+                if (parsed.done) {
+                  console.log(`✅ Stream complete. Total response: ${fullResponse.length} chars`);
                 }
               } catch (e) {
                 // Skip invalid JSON lines
