@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import { Button } from './ui/button'
 import { Send, Paperclip, FileText } from 'lucide-react'
 
@@ -20,7 +21,7 @@ interface ChatWindowProps {
   isLoading?: boolean
 }
 
-// Typewriter animation component
+// Typewriter animation component using Framer Motion
 function TypewriterMessage({ message }: { message: Message }) {
   const [displayedContent, setDisplayedContent] = useState('')
   const [isComplete, setIsComplete] = useState(false)
@@ -33,7 +34,7 @@ function TypewriterMessage({ message }: { message: Message }) {
       return
     }
 
-    // Assistant messages have typewriter effect
+    // Assistant messages have typewriter effect with Motion
     let index = 0
     setDisplayedContent('')
     setIsComplete(false)
@@ -71,7 +72,13 @@ function TypewriterMessage({ message }: { message: Message }) {
       >
         <p className="text-sm whitespace-pre-wrap">{displayedContent}</p>
         {!isComplete && message.role === 'assistant' && (
-          <span className="animate-pulse">▌</span>
+          <motion.span
+            animate={{ opacity: [1, 0.3, 1] }}
+            transition={{ duration: 0.8, repeat: Infinity }}
+            className="inline-block"
+          >
+            ▌
+          </motion.span>
         )}
       </div>
     </div>
@@ -209,11 +216,28 @@ export default function ChatWindow({ messages, onSendMessage, isLoading = false 
           ))
         )}
         {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-muted text-muted-foreground px-4 py-2 rounded-lg">
-              <p className="text-sm">Thinking...</p>
-            </div>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="flex justify-start"
+          >
+            <motion.div
+              className="bg-muted text-muted-foreground px-4 py-2 rounded-lg"
+              animate={{ scale: [1, 1.02, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <p className="text-sm">
+                Thinking
+                <motion.span
+                  animate={{ opacity: [1, 0.5, 1] }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                >
+                  ...
+                </motion.span>
+              </p>
+            </motion.div>
+          </motion.div>
         )}
         <div ref={messagesEndRef} />
       </div>

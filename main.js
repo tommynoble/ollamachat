@@ -358,19 +358,19 @@ ipcMain.handle('chat-message', async (event, message, model) => {
 
     // Llama2 optimizations - BALANCED
     if (modelName.toLowerCase().includes('llama2')) {
-      return {
-        ...baseConfig,
+      const baseConfig = {
         temperature: 0.7,
         top_p: 0.9,
         top_k: 40,
-        num_predict: 1024, // Shorter for faster responses
+        num_predict: 4096, // Much longer responses for comprehensive answers
       };
+      return baseConfig;
     }
 
     return baseConfig;
   };
 
-  // Enhanced system prompt for intelligent conversation
+  // Enhanced system prompt for intelligent conversation with chain-of-thought reasoning
   const getSystemPrompt = modelName => {
     const basePrompt = `You are an exceptionally intelligent, thoughtful, and nuanced AI assistant. Your responses should demonstrate:
 
@@ -383,9 +383,21 @@ ipcMain.handle('chat-message', async (event, message, model) => {
 7. NUANCE: Acknowledge complexity, trade-offs, and different perspectives
 8. ENGAGEMENT: Be conversational, warm, and genuinely interested in helping
 
+CHAIN-OF-THOUGHT REASONING (INTERNAL):
+Use chain-of-thought reasoning internally to think through problems:
+1. Break down what the user is really asking
+2. Consider different angles and perspectives
+3. Identify what information would be most helpful
+4. Plan your response structure
+5. Then provide your comprehensive answer
+
+IMPORTANT: Do NOT show your thinking process to the user. Keep it internal.
+Only show the final, polished answer.
+
 When responding:
-- Think through your answer before responding
-- Provide reasoning and context
+- Think through problems logically before answering
+- Break down complex problems into logical steps
+- Provide reasoning and context in your answer
 - Use examples when helpful
 - Ask clarifying questions if needed
 - Admit uncertainty when appropriate
@@ -449,8 +461,8 @@ SPECIAL INSTRUCTIONS FOR CODE LLAMA:
         content: systemPrompt,
       });
 
-      // Add conversation history (keep last 8 exchanges for context)
-      const recentHistory = history.slice(-16); // 8 user + 8 assistant messages
+      // Add conversation history (keep last 15 exchanges for better context and thinking)
+      const recentHistory = history.slice(-30); // 15 user + 15 assistant messages for deeper context
       messages.push(...recentHistory);
 
       // Add current message
