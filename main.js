@@ -156,18 +156,18 @@ function createWindow() {
 
 
 
-  // Set Content Security Policy (relaxed for development with Vite)
+  // Set Content Security Policy (relaxed for development with Vite and file:// protocol)
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
-          "default-src 'self'; " +
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; " +
-          "style-src 'self' 'unsafe-inline'; " +
-          "img-src 'self' data: blob:; " +
-          "font-src 'self'; " +
-          "connect-src 'self' http://localhost:* ws://localhost:* wss://localhost:*"
+          "default-src 'self' file:; " +
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' file:; " +
+          "style-src 'self' 'unsafe-inline' file:; " +
+          "img-src 'self' data: blob: file:; " +
+          "font-src 'self' file:; " +
+          "connect-src 'self' http://localhost:* ws://localhost:* wss://localhost:* file:"
         ]
       }
     });
