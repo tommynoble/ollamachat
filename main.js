@@ -302,25 +302,35 @@ ipcMain.handle('chat-message', async (event, message, model) => {
   const conversationKey = `${model}-conversation`;
   let history = global.conversationHistory.get(conversationKey) || [];
 
+  // Accuracy preset for factual responses
+  const ACCURACY_PRESET = {
+    temperature: 0.25,
+    top_p: 0.85,
+    repeat_penalty: 1.1,
+    num_predict: 2048,
+    seed: 42, // Reproducible outputs for testing
+  };
+
   // Optimized parameters for different models
   const getModelConfig = modelName => {
     const baseConfig = {
-      temperature: 0.7,
-      top_p: 0.9,
+      temperature: 0.3, // Cooler default for factual accuracy
+      top_p: 0.85,
       top_k: 40,
       repeat_penalty: 1.1,
-      num_predict: 8192, // Maximum length for complete responses
+      num_predict: 2048, // Balanced length
+      seed: 42, // Reproducible outputs
     };
 
-    // Deepseek optimizations - FAST MODE
+    // Deepseek optimizations - ACCURACY MODE (thinking models need more time)
     if (modelName.toLowerCase().includes('deepseek')) {
       return {
         ...baseConfig,
-        temperature: 0.5, // Lower for faster, more focused responses
-        top_p: 0.8, // Narrower sampling for speed
-        top_k: 30, // Fewer options = faster
-        repeat_penalty: 1.0, // Less strict
-        num_predict: 512, // MUCH shorter responses for speed
+        temperature: 0.3, // Lower for accurate reasoning
+        top_p: 0.85,
+        top_k: 30,
+        repeat_penalty: 1.1,
+        num_predict: 2048, // Allow full reasoning output
       };
     }
 
@@ -328,11 +338,11 @@ ipcMain.handle('chat-message', async (event, message, model) => {
     if (modelName.toLowerCase().includes('phi')) {
       return {
         ...baseConfig,
-        temperature: 0.8, // Slightly higher for more creative responses
-        top_p: 0.95, // Better coherence
-        top_k: 50, // More vocabulary options
-        repeat_penalty: 1.05, // Reduce repetition
-        num_predict: 1024, // Phi models are efficient, can handle good length
+        temperature: 0.4, // Slightly higher for balance
+        top_p: 0.9,
+        top_k: 50,
+        repeat_penalty: 1.05,
+        num_predict: 1024,
       };
     }
 
@@ -340,9 +350,10 @@ ipcMain.handle('chat-message', async (event, message, model) => {
     if (modelName.toLowerCase().includes('codellama')) {
       return {
         ...baseConfig,
-        temperature: 0.3, // Lower for more precise code
-        top_p: 0.85,
+        temperature: 0.2, // Very low for precise code
+        top_p: 0.8,
         repeat_penalty: 1.2,
+        num_predict: 2048,
       };
     }
 
@@ -350,21 +361,21 @@ ipcMain.handle('chat-message', async (event, message, model) => {
     if (modelName.toLowerCase().includes('mistral')) {
       return {
         ...baseConfig,
-        temperature: 0.75,
-        top_p: 0.92,
+        temperature: 0.35,
+        top_p: 0.88,
         top_k: 45,
       };
     }
 
-    // Llama2 optimizations - BALANCED
+    // Llama2 optimizations - ACCURACY FOCUSED
     if (modelName.toLowerCase().includes('llama2')) {
-      const baseConfig = {
-        temperature: 0.7,
-        top_p: 0.9,
+      return {
+        ...baseConfig,
+        temperature: 0.3,
+        top_p: 0.85,
         top_k: 40,
-        num_predict: 8192, // Even longer responses - no truncation
+        num_predict: 2048,
       };
-      return baseConfig;
     }
 
     return baseConfig;
@@ -401,7 +412,14 @@ When responding:
 - Use examples when helpful
 - Ask clarifying questions if needed
 - Admit uncertainty when appropriate
-- Offer follow-up suggestions`;
+- Offer follow-up suggestions
+
+ACCURACY GUIDELINES:
+- When facts are uncertain, say "I'm not sure" and ask for a source
+- Prefer concise, specific claims; avoid guessing names, dates, or figures
+- If giving a list of steps, ensure each step is actionable and verifiable
+- Cite sources when making factual claims
+- Say "I don't know" rather than guessing`;
 
     if (modelName.toLowerCase().includes('deepseek')) {
       return `${basePrompt}
@@ -484,9 +502,11 @@ SPECIAL INSTRUCTIONS FOR CODE LLAMA:
         model: modelToUse,
         messages: messages,
         stream: true,  // Enable streaming like official Ollama app
+        keep_alive: "10m",  // Keep model loaded for 10 minutes
+        think: model.toLowerCase().includes('deepseek'),  // Enable thinking for reasoning models
         options: {
           ...modelConfig,
-          num_ctx: 4096, // Increase context window for longer responses
+          num_ctx: 8192, // Larger context window prevents silent truncation
         },
       };
 
@@ -497,7 +517,7 @@ SPECIAL INSTRUCTIONS FOR CODE LLAMA:
         port: 11434,
         path: '/api/chat',
         method: 'POST',
-        timeout: 300000, // 5 minute timeout for long responses
+        timeout: 600000, // 10 minute timeout for long responses and thinking models
         headers: {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(postData),

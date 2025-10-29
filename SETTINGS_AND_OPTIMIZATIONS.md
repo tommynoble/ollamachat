@@ -242,5 +242,106 @@ Before deploying, verify:
 
 ---
 
+---
+
+## 🎯 Accuracy & Performance Improvements (Latest)
+
+### Temperature & Sampling (Factual Accuracy)
+**File:** `/main.js` (lines 315-380)
+
+Changed from creative defaults to accuracy-focused:
+```javascript
+const baseConfig = {
+  temperature: 0.3,      // Was 0.7 - cooler for factual accuracy
+  top_p: 0.85,           // Was 0.9 - narrower sampling
+  top_k: 40,
+  repeat_penalty: 1.1,
+  num_predict: 2048,     // Was 8192 - balanced length
+  seed: 42,              // Reproducible outputs for testing
+};
+```
+
+**Why:** Lower temperature = more deterministic, factual responses. Seed ensures reproducibility.
+
+### Context Window Expansion
+**File:** `/main.js` (line 503)
+
+```javascript
+num_ctx: 8192,  // Larger context prevents silent truncation
+```
+
+**Why:** Prevents important context from being cut off mid-conversation.
+
+### Model-Specific Tuning
+
+**Deepseek-R1 (Reasoning Model):**
+```javascript
+temperature: 0.3,
+num_predict: 2048,
+// Removed: stop: ["<think>", "</think>"] - caused API errors
+```
+
+**CodeLlama (Code Generation):**
+```javascript
+temperature: 0.2,  // Very low for precise code
+```
+
+**Llama2 (Balanced):**
+```javascript
+temperature: 0.3,
+```
+
+### System Prompt Accuracy Guidelines
+**File:** `/main.js` (lines 418-423)
+
+Added explicit accuracy instructions:
+```
+ACCURACY GUIDELINES:
+- When facts are uncertain, say "I'm not sure" and ask for a source
+- Prefer concise, specific claims; avoid guessing names, dates, or figures
+- If giving a list of steps, ensure each step is actionable and verifiable
+- Cite sources when making factual claims
+- Say "I don't know" rather than guessing
+```
+
+### Keep-Alive & Thinking
+**File:** `/main.js` (lines 499-500)
+
+```javascript
+keep_alive: "10m",  // Keep model loaded for 10 minutes
+think: model.toLowerCase().includes('deepseek'),  // Enable thinking for reasoning models
+```
+
+### Timeout
+**File:** `/main.js` (line 502)
+
+```javascript
+timeout: 600000,  // 10 minutes for long responses
+```
+
+---
+
+## 🐛 Bug Fix: "No response received" Error
+
+### Problem
+After adding accuracy settings, responses returned "No response received" error.
+
+### Root Cause
+The `stop: ["<think>", "</think>"]` parameter was not supported by Ollama API and caused the request to fail silently.
+
+### Solution
+**Removed the stop parameter** from Deepseek config:
+```javascript
+// REMOVED - caused API errors:
+// stop: ["<think>", "</think>"]
+```
+
+### Result
+✅ Responses now work correctly with accuracy settings applied
+✅ All models respond properly
+✅ No more "No response received" errors
+
+---
+
 **Last Updated:** October 29, 2025  
-**Status:** Production Ready ✅
+**Status:** Production Ready ✅ (Accuracy Mode Enabled)
