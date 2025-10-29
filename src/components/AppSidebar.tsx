@@ -7,7 +7,7 @@ import {
   SidebarGroupContent,
   useSidebar,
 } from "./ui/sidebar"
-import { MessageCircle, BookOpen, Code2, Settings, BarChart3, Zap, GitCompare, ChevronDown, TrendingUp, Briefcase, Wrench, Cloud } from "lucide-react"
+import { MessageCircle, BookOpen, Code2, Settings, BarChart3, Zap, GitCompare, ChevronDown, TrendingUp, Briefcase, Wrench, Cloud, FileText } from "lucide-react"
 
 interface AppSidebarProps {
   currentPage?: string
@@ -160,6 +160,7 @@ export function AppSidebar({ currentPage = "chat", onNavigate }: AppSidebarProps
             <SidebarGroupContent>
             <div className="flex flex-col gap-1">
               {[
+                { label: "Documents", icon: FileText, page: "documents" },
                 { label: "Models", icon: BarChart3, page: "models" },
                 { label: "Settings", icon: Settings, page: "settings" },
                 { label: "Go Online", icon: Cloud, page: "online" },

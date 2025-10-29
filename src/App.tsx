@@ -9,6 +9,7 @@ import CoderPage from './pages/CoderPage'
 import SettingsPage from './pages/SettingsPage'
 import ComparisonPage from './pages/ComparisonPage'
 import OnlinePage from './pages/OnlinePage'
+import DocumentsPage from './pages/DocumentsPage'
 import { MessageCircle, Moon, Sun, BookOpen, Code2, GitCompare } from 'lucide-react'
 import { Button } from './components/ui/button'
 import { SidebarTrigger } from './components/ui/sidebar'
@@ -295,6 +296,8 @@ export default function App() {
         return <SettingsPage />
       case 'online':
         return <OnlinePage />
+      case 'documents':
+        return <DocumentsPage />
       default:
         return (
           <>

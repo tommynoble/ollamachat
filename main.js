@@ -1943,3 +1943,130 @@ ipcMain.handle('configure-external-drive', async (event, driveInfo) => {
     };
   }
 });
+
+// ===== RAG SYSTEM HANDLERS =====
+
+// Upload document for RAG
+ipcMain.handle('rag-upload-document', async (event, filePath) => {
+  return new Promise((resolve) => {
+    const python = spawn('python3', [
+      path.join(__dirname, 'rag_system.py'),
+      'add',
+      filePath
+    ]);
+
+    let output = '';
+    let errorOutput = '';
+
+    python.stdout.on('data', (data) => {
+      output += data.toString();
+    });
+
+    python.stderr.on('data', (data) => {
+      errorOutput += data.toString();
+    });
+
+    python.on('close', (code) => {
+      if (code === 0) {
+        try {
+          const result = JSON.parse(output);
+          resolve(result);
+        } catch (e) {
+          resolve({ success: false, error: 'Failed to parse response' });
+        }
+      } else {
+        resolve({ success: false, error: errorOutput || 'Upload failed' });
+      }
+    });
+  });
+});
+
+// List RAG documents
+ipcMain.handle('rag-list-documents', async () => {
+  return new Promise((resolve) => {
+    const python = spawn('python3', [
+      path.join(__dirname, 'rag_system.py'),
+      'list'
+    ]);
+
+    let output = '';
+
+    python.stdout.on('data', (data) => {
+      output += data.toString();
+    });
+
+    python.on('close', (code) => {
+      if (code === 0) {
+        try {
+          const result = JSON.parse(output);
+          resolve(result);
+        } catch (e) {
+          resolve([]);
+        }
+      } else {
+        resolve([]);
+      }
+    });
+  });
+});
+
+// Delete RAG document
+ipcMain.handle('rag-delete-document', async (event, fileName) => {
+  return new Promise((resolve) => {
+    const python = spawn('python3', [
+      path.join(__dirname, 'rag_system.py'),
+      'delete',
+      fileName
+    ]);
+
+    let output = '';
+
+    python.stdout.on('data', (data) => {
+      output += data.toString();
+    });
+
+    python.on('close', (code) => {
+      if (code === 0) {
+        try {
+          const result = JSON.parse(output);
+          resolve(result);
+        } catch (e) {
+          resolve({ success: false, error: 'Failed to parse response' });
+        }
+      } else {
+        resolve({ success: false, error: 'Delete failed' });
+      }
+    });
+  });
+});
+
+// Search RAG documents
+ipcMain.handle('rag-search', async (event, query, nResults = 3) => {
+  return new Promise((resolve) => {
+    const python = spawn('python3', [
+      path.join(__dirname, 'rag_system.py'),
+      'search',
+      query,
+      nResults.toString()
+    ]);
+
+    let output = '';
+
+    python.stdout.on('data', (data) => {
+      output += data.toString();
+    });
+
+    python.on('close', (code) => {
+      if (code === 0) {
+        try {
+          const result = JSON.parse(output);
+          resolve(result);
+        } catch (e) {
+          resolve([]);
+        }
+      } else {
+        resolve([]);
+      }
+    });
+  });
+});
