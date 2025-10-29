@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { Button } from './ui/button'
-import { Send, Paperclip, FileText, Image as ImageIcon } from 'lucide-react'
+import { Send, Paperclip, FileText } from 'lucide-react'
 
 interface Message {
   role: string
   content: string
+  isStreaming?: boolean
 }
 
 interface Document {
@@ -17,6 +18,64 @@ interface ChatWindowProps {
   messages: Message[]
   onSendMessage: (message: string) => void
   isLoading?: boolean
+}
+
+// Typewriter animation component
+function TypewriterMessage({ message }: { message: Message }) {
+  const [displayedContent, setDisplayedContent] = useState('')
+  const [isComplete, setIsComplete] = useState(false)
+
+  useEffect(() => {
+    if (message.role === 'user') {
+      // User messages display instantly
+      setDisplayedContent(message.content)
+      setIsComplete(true)
+      return
+    }
+
+    // Assistant messages have typewriter effect
+    let index = 0
+    setDisplayedContent('')
+    setIsComplete(false)
+
+    const interval = setInterval(() => {
+      if (index < message.content.length) {
+        // Handle emojis and multi-byte characters properly
+        const char = message.content[index]
+        // Check if it's a surrogate pair (emoji)
+        if (char.charCodeAt(0) >= 0xD800 && char.charCodeAt(0) <= 0xDBFF) {
+          // It's a high surrogate, include the next character too
+          setDisplayedContent(message.content.substring(0, index + 2))
+          index += 2
+        } else {
+          setDisplayedContent(message.content.substring(0, index + 1))
+          index++
+        }
+      } else {
+        setIsComplete(true)
+        clearInterval(interval)
+      }
+    }, 15) // Adjust speed here (lower = faster)
+
+    return () => clearInterval(interval)
+  }, [message])
+
+  return (
+    <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+      <div
+        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+          message.role === 'user'
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-muted text-muted-foreground'
+        }`}
+      >
+        <p className="text-sm whitespace-pre-wrap">{displayedContent}</p>
+        {!isComplete && message.role === 'assistant' && (
+          <span className="animate-pulse">▌</span>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export default function ChatWindow({ messages, onSendMessage, isLoading = false }: ChatWindowProps) {
@@ -146,20 +205,7 @@ export default function ChatWindow({ messages, onSendMessage, isLoading = false 
           </div>
         ) : (
           messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                  msg.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground'
-                }`}
-              >
-                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-              </div>
-            </div>
+            <TypewriterMessage key={idx} message={msg} />
           ))
         )}
         {isLoading && (
