@@ -507,8 +507,12 @@ SPECIAL INSTRUCTIONS FOR CODE LLAMA:
       const req = http.request(options, res => {
         let fullResponse = '';
         let buffer = '';
+        let chunkCount = 0;
+        let totalBytesReceived = 0;
 
         res.on('data', chunk => {
+          totalBytesReceived += chunk.length;
+          chunkCount++;
           buffer += chunk.toString();
           const lines = buffer.split('\n');
           
@@ -523,7 +527,10 @@ SPECIAL INSTRUCTIONS FOR CODE LLAMA:
                 }
                 // Log if this is the last chunk (done: true)
                 if (parsed.done) {
-                  console.log(`✅ Stream complete. Total response: ${fullResponse.length} chars`);
+                  console.log(`✅ Stream complete!`);
+                  console.log(`   - Total chunks: ${chunkCount}`);
+                  console.log(`   - Total bytes: ${totalBytesReceived}`);
+                  console.log(`   - Response length: ${fullResponse.length} chars`);
                 }
               } catch (e) {
                 // Skip invalid JSON lines

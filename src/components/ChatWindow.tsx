@@ -70,7 +70,7 @@ function TypewriterMessage({ message }: { message: Message }) {
             : 'max-w-2xl text-foreground rounded-2xl px-6 py-3'
         }`}
       >
-        <div className="text-base whitespace-pre-wrap leading-relaxed space-y-2">
+        <div className="text-base whitespace-pre-wrap leading-8 space-y-4">
           {displayedContent}
           {!isComplete && message.role === 'assistant' && (
             <motion.span
