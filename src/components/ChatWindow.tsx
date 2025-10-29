@@ -49,55 +49,73 @@ export default function ChatWindow({ messages, onSendMessage, isLoading = false 
 
   const handleUploadDocument = async () => {
     try {
-      const fileInput = document.createElement('input')
-      fileInput.type = 'file'
-      fileInput.accept = '.pdf,.txt,.md,.json,.py,.js,.ts,.tsx,.jsx'
+      setIsUploadingDoc(true)
       
-      fileInput.onchange = async (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0]
-        if (!file) return
-
-        setIsUploadingDoc(true)
-        const filePath = (file as any).path
-        const result = await (window as any).ipcRenderer?.invoke('rag-upload-document', filePath)
-        
-        if (result.success) {
-          loadDocuments()
-        }
+      // Use Electron's file dialog
+      const result = await (window as any).ipcRenderer?.invoke('open-file-dialog', {
+        filters: [
+          { name: 'Documents', extensions: ['pdf', 'txt', 'md', 'json', 'csv', 'py', 'js', 'ts', 'tsx', 'jsx'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      })
+      
+      if (result.canceled || !result.filePaths?.[0]) {
         setIsUploadingDoc(false)
+        return
       }
 
-      fileInput.click()
+      const filePath = result.filePaths[0]
+      const uploadResult = await (window as any).ipcRenderer?.invoke('rag-upload-document', filePath)
+      
+      if (uploadResult.success) {
+        loadDocuments()
+        console.log('✅ Document uploaded:', uploadResult.message)
+      } else {
+        console.error('Upload failed:', uploadResult.error)
+        alert(`❌ Upload failed: ${uploadResult.error}`)
+      }
+      setIsUploadingDoc(false)
     } catch (error) {
       console.error('Error uploading document:', error)
+      setIsUploadingDoc(false)
     }
   }
 
   const handleUploadImage = async () => {
     try {
-      const fileInput = document.createElement('input')
-      fileInput.type = 'file'
-      fileInput.accept = 'image/*'
+      setIsUploadingDoc(true)
       
-      fileInput.onchange = async (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0]
-        if (!file) return
-
-        setIsUploadingDoc(true)
-        // For now, just add image as a message
-        const reader = new FileReader()
-        reader.onload = (event) => {
-          const imageData = event.target?.result as string
-          // You can send this to the model or display it
-          console.log('Image uploaded:', file.name)
-          setIsUploadingDoc(false)
-        }
-        reader.readAsDataURL(file)
+      // Use Electron's file dialog
+      const result = await (window as any).ipcRenderer?.invoke('open-file-dialog', {
+        filters: [
+          { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      })
+      
+      if (result.canceled || !result.filePaths?.[0]) {
+        setIsUploadingDoc(false)
+        return
       }
 
-      fileInput.click()
+      const filePath = result.filePaths[0]
+      
+      // For images, we'll store them as documents for now
+      // In the future, this could be enhanced for vision models
+      const uploadResult = await (window as any).ipcRenderer?.invoke('rag-upload-document', filePath)
+      
+      if (uploadResult.success) {
+        console.log('Image uploaded:', filePath)
+        loadDocuments()
+        alert(`✅ Image uploaded: ${uploadResult.file_name}\n\nNote: Image support is coming soon. For now, images are stored but not processed.`)
+      } else {
+        console.error('Image upload failed:', uploadResult.error)
+        alert(`❌ Upload failed: ${uploadResult.error}\n\nNote: Images need OCR support. This feature is coming soon!`)
+      }
+      setIsUploadingDoc(false)
     } catch (error) {
       console.error('Error uploading image:', error)
+      setIsUploadingDoc(false)
     }
   }
 

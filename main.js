@@ -1946,9 +1946,20 @@ ipcMain.handle('configure-external-drive', async (event, driveInfo) => {
 
 // ===== RAG SYSTEM HANDLERS =====
 
+// Open file dialog for document selection
+ipcMain.handle('open-file-dialog', async (event, options) => {
+  const { dialog } = require('electron');
+  return await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: options.filters || [{ name: 'All Files', extensions: ['*'] }]
+  });
+});
+
 // Upload document for RAG
 ipcMain.handle('rag-upload-document', async (event, filePath) => {
   return new Promise((resolve) => {
+    let resolved = false;
+    
     const python = spawn('python3', [
       path.join(__dirname, 'rag_system.py'),
       'add',
@@ -1957,6 +1968,15 @@ ipcMain.handle('rag-upload-document', async (event, filePath) => {
 
     let output = '';
     let errorOutput = '';
+
+    // Set timeout (60 seconds for large files)
+    const timeout = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        python.kill();
+        resolve({ success: false, error: 'Upload timeout - file too large or processing took too long' });
+      }
+    }, 60000);
 
     python.stdout.on('data', (data) => {
       output += data.toString();
@@ -1967,15 +1987,29 @@ ipcMain.handle('rag-upload-document', async (event, filePath) => {
     });
 
     python.on('close', (code) => {
-      if (code === 0) {
-        try {
-          const result = JSON.parse(output);
-          resolve(result);
-        } catch (e) {
-          resolve({ success: false, error: 'Failed to parse response' });
+      if (!resolved) {
+        resolved = true;
+        clearTimeout(timeout);
+        
+        if (code === 0) {
+          try {
+            const result = JSON.parse(output);
+            resolve(result);
+          } catch (e) {
+            console.error('Parse error:', e, 'Output:', output);
+            resolve({ success: false, error: 'Failed to parse response: ' + e.message });
+          }
+        } else {
+          resolve({ success: false, error: errorOutput || 'Upload failed with code ' + code });
         }
-      } else {
-        resolve({ success: false, error: errorOutput || 'Upload failed' });
+      }
+    });
+
+    python.on('error', (err) => {
+      if (!resolved) {
+        resolved = true;
+        clearTimeout(timeout);
+        resolve({ success: false, error: 'Process error: ' + err.message });
       }
     });
   });

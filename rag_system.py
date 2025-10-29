@@ -6,7 +6,13 @@ Handles document upload, embedding, storage, and retrieval
 
 import os
 import json
+import warnings
 from typing import List, Dict, Optional
+
+# Suppress urllib3 warnings
+warnings.filterwarnings('ignore', message='urllib3')
+warnings.filterwarnings('ignore')
+
 import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
@@ -33,9 +39,10 @@ class RAGSystem:
         )
         
         # Initialize embedding model (lightweight and fast)
-        print("Loading embedding model...")
+        # Suppress output to keep clean for IPC
+        import warnings
+        warnings.filterwarnings('ignore')
         self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-        print("Embedding model loaded!")
     
     def extract_text_from_pdf(self, pdf_path: str) -> str:
         """Extract text from PDF file"""
@@ -52,8 +59,26 @@ class RAGSystem:
         """Extract text from various file types"""
         file_ext = os.path.splitext(file_path)[1].lower()
         
+        # Image files - not yet supported
+        if file_ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg']:
+            raise Exception(f"Image files not yet supported. OCR functionality coming soon!")
+        
         if file_ext == '.pdf':
             return self.extract_text_from_pdf(file_path)
+        elif file_ext == '.csv':
+            # Read CSV and convert to readable format
+            try:
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                if not content.strip():
+                    raise Exception("CSV file is empty")
+                # Format CSV nicely for embedding
+                lines = content.split('\n')
+                # Keep first 200 lines for better context
+                formatted = "CSV Data:\n" + "\n".join([line for line in lines[:200] if line.strip()])
+                return formatted if formatted else "CSV Data: Empty file"
+            except Exception as e:
+                raise Exception(f"Error reading CSV: {str(e)}")
         elif file_ext in ['.txt', '.md', '.json', '.py', '.js', '.ts', '.tsx', '.jsx']:
             with open(file_path, 'r', encoding='utf-8') as f:
                 return f.read()
@@ -220,42 +245,49 @@ class RAGSystem:
 # CLI interface for IPC handlers
 if __name__ == "__main__":
     import sys
+    import warnings
     
-    rag = RAGSystem()
+    # Suppress warnings to keep output clean
+    warnings.filterwarnings('ignore')
     
-    if len(sys.argv) < 2:
-        print("RAG System initialized successfully!")
-        print(f"Documents in collection: {len(rag.list_documents())}")
-        sys.exit(0)
+    try:
+        rag = RAGSystem()
+        
+        if len(sys.argv) < 2:
+            sys.exit(0)
+        
+        command = sys.argv[1]
+        
+        if command == 'add' and len(sys.argv) >= 3:
+            file_path = sys.argv[2]
+            result = rag.add_document(file_path)
+            print(json.dumps(result))
+        
+        elif command == 'list':
+            documents = rag.list_documents()
+            print(json.dumps(documents))
+        
+        elif command == 'delete' and len(sys.argv) >= 3:
+            file_name = sys.argv[2]
+            result = rag.delete_document(file_name)
+            print(json.dumps(result))
+        
+        elif command == 'search' and len(sys.argv) >= 3:
+            query = sys.argv[2]
+            n_results = int(sys.argv[3]) if len(sys.argv) >= 4 else 3
+            results = rag.search(query, n_results)
+            print(json.dumps(results))
+        
+        elif command == 'context' and len(sys.argv) >= 3:
+            query = sys.argv[2]
+            n_results = int(sys.argv[3]) if len(sys.argv) >= 4 else 3
+            context = rag.get_context_for_query(query, n_results)
+            print(json.dumps({'context': context}))
+        
+        else:
+            print(json.dumps({'error': 'Invalid command'}))
+            sys.exit(1)
     
-    command = sys.argv[1]
-    
-    if command == 'add' and len(sys.argv) >= 3:
-        file_path = sys.argv[2]
-        result = rag.add_document(file_path)
-        print(json.dumps(result))
-    
-    elif command == 'list':
-        documents = rag.list_documents()
-        print(json.dumps(documents))
-    
-    elif command == 'delete' and len(sys.argv) >= 3:
-        file_name = sys.argv[2]
-        result = rag.delete_document(file_name)
-        print(json.dumps(result))
-    
-    elif command == 'search' and len(sys.argv) >= 3:
-        query = sys.argv[2]
-        n_results = int(sys.argv[3]) if len(sys.argv) >= 4 else 3
-        results = rag.search(query, n_results)
-        print(json.dumps(results))
-    
-    elif command == 'context' and len(sys.argv) >= 3:
-        query = sys.argv[2]
-        n_results = int(sys.argv[3]) if len(sys.argv) >= 4 else 3
-        context = rag.get_context_for_query(query, n_results)
-        print(json.dumps({'context': context}))
-    
-    else:
-        print(json.dumps({'error': 'Invalid command'}))
+    except Exception as e:
+        print(json.dumps({'error': str(e)}))
         sys.exit(1)
