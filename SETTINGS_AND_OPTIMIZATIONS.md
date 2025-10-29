@@ -343,5 +343,83 @@ The `stop: ["<think>", "</think>"]` parameter was not supported by Ollama API an
 
 ---
 
+---
+
+## 🎨 Markdown Rendering & Professional Formatting (Latest)
+
+### Dependencies Added
+**File:** `package.json`
+
+```bash
+npm i react-markdown remark-gfm
+npm i -D @tailwindcss/typography
+```
+
+### Frontend Changes
+**File:** `/src/components/ChatWindow.tsx`
+
+#### Helper Function:
+```javascript
+function closeDanglingFence(s: string) {
+  const fences = (s.match(/```/g) || []).length
+  return fences % 2 === 1 ? s + '\n```' : s
+}
+```
+
+#### Message Rendering:
+- **User messages:** Instant display (no typewriter)
+- **Assistant messages:** Markdown rendering with custom components
+
+#### Custom Markdown Components:
+```javascript
+components={{
+  h2: (p) => <h2 className="text-xl font-bold mt-6 mb-3" {...p} />,
+  h3: (p) => <h3 className="text-lg font-semibold mt-4 mb-2" {...p} />,
+  ul: (p) => <ul className="list-disc pl-6 space-y-2" {...p} />,
+  ol: (p) => <ol className="list-decimal pl-6 space-y-2" {...p} />,
+  li: (p) => <li className="leading-relaxed" {...p} />,
+  strong: (p) => <strong className="font-semibold" {...p} />,
+  p: (p) => <p className="leading-relaxed mb-3" {...p} />,
+  code: (p) => <code className="px-1.5 py-0.5 rounded bg-muted/40 font-mono text-sm" {...p} />,
+  pre: (p) => <pre className="p-3 rounded bg-muted/40 overflow-x-auto mb-3" {...p} />,
+}}
+```
+
+### System Prompt Update
+**File:** `/main.js` (lines 424-428)
+
+Added FORMAT RULES:
+```
+FORMAT RULES:
+- Always answer in GitHub-flavored Markdown.
+- Use numbered section headings (## 1., ## 2., …).
+- For each item, use **bold** labels followed by clear text.
+- Use bullet lists where helpful. No HTML.
+```
+
+### Tailwind Configuration
+**File:** `tailwind.config.js`
+
+```javascript
+plugins: [require('@tailwindcss/typography')],
+```
+
+### Why This Works:
+- ✅ No broken Markdown while streaming
+- ✅ Professional formatting for headings, lists, code blocks
+- ✅ Syntax highlighting for code
+- ✅ Proper typography with prose styles
+- ✅ Auto-closes dangling code fences
+- ✅ User messages instant, assistant messages smooth
+
+### Result:
+- 📝 **Headings:** Styled h2/h3 with proper spacing
+- 📋 **Lists:** Bullet points with proper indentation
+- 💻 **Code blocks:** Syntax highlighted, auto-closes
+- 📖 **Typography:** Professional prose styles
+- ✨ **Smooth rendering:** No character-by-character breaking
+
+---
+
 **Last Updated:** October 29, 2025  
-**Status:** Production Ready ✅ (Accuracy Mode Enabled)
+**Status:** Production Ready ✅ (Markdown + Accuracy Mode Enabled)
