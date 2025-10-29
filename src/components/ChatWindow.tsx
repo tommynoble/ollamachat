@@ -1,10 +1,16 @@
 import { useState, useRef, useEffect } from 'react'
 import { Button } from './ui/button'
-import { Send } from 'lucide-react'
+import { Send, Paperclip, FileText, Image as ImageIcon } from 'lucide-react'
 
 interface Message {
   role: string
   content: string
+}
+
+interface Document {
+  file_name: string
+  file_path: string
+  chunks_count: number
 }
 
 interface ChatWindowProps {
@@ -15,6 +21,9 @@ interface ChatWindowProps {
 
 export default function ChatWindow({ messages, onSendMessage, isLoading = false }: ChatWindowProps) {
   const [input, setInput] = useState('')
+  const [documents, setDocuments] = useState<Document[]>([])
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false)
+  const [showDocuments, setShowDocuments] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -24,6 +33,73 @@ export default function ChatWindow({ messages, onSendMessage, isLoading = false 
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  useEffect(() => {
+    loadDocuments()
+  }, [])
+
+  const loadDocuments = async () => {
+    try {
+      const docs = await (window as any).ipcRenderer?.invoke('rag-list-documents')
+      setDocuments(docs || [])
+    } catch (error) {
+      console.error('Error loading documents:', error)
+    }
+  }
+
+  const handleUploadDocument = async () => {
+    try {
+      const fileInput = document.createElement('input')
+      fileInput.type = 'file'
+      fileInput.accept = '.pdf,.txt,.md,.json,.py,.js,.ts,.tsx,.jsx'
+      
+      fileInput.onchange = async (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0]
+        if (!file) return
+
+        setIsUploadingDoc(true)
+        const filePath = (file as any).path
+        const result = await (window as any).ipcRenderer?.invoke('rag-upload-document', filePath)
+        
+        if (result.success) {
+          loadDocuments()
+        }
+        setIsUploadingDoc(false)
+      }
+
+      fileInput.click()
+    } catch (error) {
+      console.error('Error uploading document:', error)
+    }
+  }
+
+  const handleUploadImage = async () => {
+    try {
+      const fileInput = document.createElement('input')
+      fileInput.type = 'file'
+      fileInput.accept = 'image/*'
+      
+      fileInput.onchange = async (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0]
+        if (!file) return
+
+        setIsUploadingDoc(true)
+        // For now, just add image as a message
+        const reader = new FileReader()
+        reader.onload = (event) => {
+          const imageData = event.target?.result as string
+          // You can send this to the model or display it
+          console.log('Image uploaded:', file.name)
+          setIsUploadingDoc(false)
+        }
+        reader.readAsDataURL(file)
+      }
+
+      fileInput.click()
+    } catch (error) {
+      console.error('Error uploading image:', error)
+    }
+  }
 
   const handleSend = () => {
     if (input.trim()) {
@@ -79,7 +155,70 @@ export default function ChatWindow({ messages, onSendMessage, isLoading = false 
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-border bg-card p-4">
+      <div className="border-t border-border bg-card p-4 relative">
+        {/* Attachments Popup - Right Side */}
+        {showDocuments && (
+          <div className="absolute bottom-full right-4 mb-2 bg-card border border-border rounded-lg shadow-lg p-4 w-72 z-50">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-sm">Attachments</h3>
+              <button
+                onClick={() => setShowDocuments(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Upload Options */}
+            <div className="space-y-2 mb-4">
+              <Button
+                onClick={handleUploadDocument}
+                disabled={isUploadingDoc}
+                variant="outline"
+                size="sm"
+                className="w-full justify-start gap-2 text-xs"
+              >
+                <FileText className="w-4 h-4" />
+                {isUploadingDoc ? 'Uploading...' : 'Upload Document'}
+              </Button>
+              <Button
+                onClick={handleUploadImage}
+                disabled={isUploadingDoc}
+                variant="outline"
+                size="sm"
+                className="w-full justify-start gap-2 text-xs"
+              >
+                <ImageIcon className="w-4 h-4" />
+                Upload Image
+              </Button>
+            </div>
+
+            {/* Documents List */}
+            <div className="border-t border-border pt-3">
+              <p className="text-xs font-medium text-muted-foreground mb-2">Documents</p>
+              {documents.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">No documents yet</p>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {documents.map((doc) => (
+                    <div
+                      key={doc.file_name}
+                      className="flex items-center gap-2 p-2 bg-muted/50 rounded hover:bg-muted cursor-pointer"
+                    >
+                      <FileText className="w-4 h-4 text-primary flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate">{doc.file_name}</p>
+                        <p className="text-xs text-muted-foreground">{doc.chunks_count} chunks</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Input Controls */}
         <div className="flex gap-2">
           <textarea
             value={input}
@@ -90,13 +229,25 @@ export default function ChatWindow({ messages, onSendMessage, isLoading = false 
             rows={3}
             disabled={isLoading}
           />
-          <Button
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading}
-            className="self-end"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
+          <div className="flex flex-col gap-2 self-end">
+            <Button
+              onClick={() => setShowDocuments(!showDocuments)}
+              disabled={isLoading}
+              variant="outline"
+              size="icon"
+              title="Documents"
+              className={documents.length > 0 ? 'bg-primary/10' : ''}
+            >
+              <Paperclip className="w-4 h-4" />
+            </Button>
+            <Button
+              onClick={handleSend}
+              disabled={!input.trim() || isLoading}
+              size="icon"
+            >
+              <Send className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
