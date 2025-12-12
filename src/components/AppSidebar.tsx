@@ -7,7 +7,7 @@ import {
   SidebarGroupContent,
   useSidebar,
 } from "./ui/sidebar"
-import { MessageCircle, BookOpen, Code2, Settings, BarChart3, Zap, GitCompare, ChevronDown, TrendingUp, Briefcase, Wrench, Cloud, PanelLeftClose, Brain } from "lucide-react"
+import { MessageCircle, BookOpen, Code2, Settings, BarChart3, Zap, GitCompare, ChevronDown, TrendingUp, Briefcase, Wrench, Cloud, PanelLeftClose, Brain as BrainIcon } from "lucide-react"
 
 interface AppSidebarProps {
   currentPage?: string
@@ -195,7 +195,7 @@ export function AppSidebar({ currentPage = "chat", onNavigate, onToggleHistory, 
                 { label: "Models", icon: BarChart3, page: "models" },
                 { label: "Settings", icon: Settings, page: "settings" },
                 { label: "Go Online", icon: Cloud, page: "online" },
-                { label: "Train Model", icon: Brain, page: "train" },
+                { label: "Train Model", icon: BrainIcon, page: "train" },
               ].map(item => renderNavItem(item))}
             </div>
             </SidebarGroupContent>
