@@ -827,7 +827,7 @@ function formatMessage(content) {
   // Smart list processing (before line break conversion)
   // Process bullet lists
   const bulletListRegex = /^- (.+)$/gm;
-  let bulletMatches = [];
+  const bulletMatches = [];
   formatted = formatted.replace(bulletListRegex, (match, content) => {
     bulletMatches.push(content);
     return `BULLET_ITEM_${bulletMatches.length - 1}`;
@@ -835,7 +835,7 @@ function formatMessage(content) {
   
   // Process numbered lists  
   const numberedListRegex = /^\d+\. (.+)$/gm;
-  let numberedMatches = [];
+  const numberedMatches = [];
   formatted = formatted.replace(numberedListRegex, (match, content) => {
     numberedMatches.push(content);
     return `NUMBERED_ITEM_${numberedMatches.length - 1}`;

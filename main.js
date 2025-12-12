@@ -12,14 +12,7 @@ function initializeExternalDriveSettings() {
     const configPath = path.join(__dirname, 'ollama-config.json');
     if (fs.existsSync(configPath)) {
       const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      if (config.usingExternal && config.externalPath) {
-        // Automatically set the environment variable for Ollama
-        process.env.OLLAMA_MODELS = config.externalPath;
-        console.log(
-          `🎯 Auto-configured Ollama to use external drive: ${config.externalPath}`
-        );
-        return config.externalPath;
-      }
+      // External drive usage disabled: keep models on the default local path
     }
   } catch (error) {
     console.log('No external drive config found, using default path');
@@ -34,7 +27,7 @@ async function ensureOllamaInstalled() {
     '/opt/homebrew/bin/ollama',
     '/usr/bin/ollama',
   ];
-  
+
   // Check if Ollama already exists in system
   for (const ollamaPath of ollamaPaths) {
     if (fs.existsSync(ollamaPath)) {
@@ -42,40 +35,40 @@ async function ensureOllamaInstalled() {
       return ollamaPath;
     }
   }
-  
+
   const ollamaDir = path.join(app.getPath('home'), '.ollamachat');
   const ollamaPath = path.join(ollamaDir, 'ollama');
   const flagFile = path.join(ollamaDir, '.ollama-download-attempted');
-  
+
   // Create directory if it doesn't exist
   if (!fs.existsSync(ollamaDir)) {
     fs.mkdirSync(ollamaDir, { recursive: true });
   }
-  
+
   // Check if already downloaded
   if (fs.existsSync(ollamaPath)) {
     console.log('✅ Ollama already downloaded at:', ollamaPath);
     return ollamaPath;
   }
-  
+
   // Check if we already attempted download (only try once)
   if (fs.existsSync(flagFile)) {
     console.log('⚠️ Ollama download was already attempted. Skipping.');
     return null;
   }
-  
+
   try {
     // Mark that we're attempting download (only once)
     fs.writeFileSync(flagFile, new Date().toISOString());
-    
+
     console.log('📥 Ollama not found. Auto-downloading...');
-    
+
     // Download Ollama for macOS
     const downloadUrl = 'https://ollama.ai/download/ollama-darwin.zip';
     const zipPath = path.join(ollamaDir, 'ollama-darwin.zip');
-    
+
     console.log('⏳ Downloading Ollama (~100MB)...');
-    
+
     await new Promise((resolve, reject) => {
       https.get(downloadUrl, (response) => {
         if (response.statusCode === 302 || response.statusCode === 301) {
@@ -96,30 +89,30 @@ async function ensureOllamaInstalled() {
         }
       }).on('error', reject);
     });
-    
+
     console.log('✅ Downloaded. Extracting...');
-    
+
     // Extract zip file
     try {
       execSync(`cd "${ollamaDir}" && unzip -o ollama-darwin.zip`, { stdio: 'ignore' });
     } catch (e) {
       throw new Error('Failed to extract Ollama zip file');
     }
-    
+
     // Make executable
     try {
       execSync(`chmod +x "${ollamaPath}"`, { stdio: 'ignore' });
     } catch (e) {
       throw new Error('Failed to make Ollama executable');
     }
-    
+
     // Clean up zip
     try {
       fs.unlinkSync(zipPath);
     } catch (e) {
       console.log('Warning: Could not delete zip file');
     }
-    
+
     console.log('✅ Ollama installed successfully at:', ollamaPath);
     return ollamaPath;
   } catch (error) {
@@ -173,22 +166,25 @@ function createWindow() {
     });
   });
 
-  // Load React app - use Vite dev server in development, built files in production
-  // Check if dist folder exists (production) or use dev server
+  // Load React app - prefer dev server when NODE_ENV=development
   const distPath = path.join(__dirname, 'dist', 'index.html');
   const hasDistFolder = fs.existsSync(distPath);
-  
-  if (!hasDistFolder) {
+  const isDev = process.env.NODE_ENV === 'development';
+
+  if (isDev) {
     // In development, load from Vite dev server (try multiple ports)
     mainWindow.loadURL('http://localhost:5174').catch(() => {
       mainWindow.loadURL('http://localhost:5173').catch(() => {
         mainWindow.loadURL('http://localhost:5175');
       });
     });
-  } else {
+  } else if (hasDistFolder) {
     // In production, load from built React files using file:// protocol with absolute path
     const fileUrl = `file://${distPath}`;
     mainWindow.loadURL(fileUrl);
+  } else {
+    // Fallback: try dev server if dist is missing
+    mainWindow.loadURL('http://localhost:5173');
   }
 
   // Show window when ready
@@ -254,211 +250,122 @@ app.on('activate', () => {
 
 // IPC Handlers
 
-// Robust chat handler with STRICT external drive enforcement
-ipcMain.handle('chat-message', async (event, message, model) => {
-  const http = require('http');
-
-  // 🔒 CRITICAL: Verify external drive is configured and active
-  const configPath = path.join(__dirname, 'ollama-config.json');
-  let isUsingExternal = false;
-  let externalPath = null;
-
-  if (fs.existsSync(configPath)) {
-    try {
-      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      isUsingExternal = config.usingExternal === true;
-      externalPath = config.externalPath;
-    } catch (error) {
-      console.log('Error reading external drive config');
-    }
-  }
-
-  // 🚫 BLOCK CHAT if not using external drive
-  if (!isUsingExternal || !externalPath) {
-    return {
-      success: false,
-      error: 'External storage required for model access.',
-      requiresExternalDrive: true,
-    };
-  }
-
-  // 🔍 Verify the external drive is still mounted
-  if (!fs.existsSync(externalPath)) {
-    return {
-      success: false,
-      error: `External drive not found. Please ensure it's connected.`,
-      requiresExternalDrive: true,
-    };
-  }
-
-  // ✅ Confirmed using external drive - proceed with chat
-  console.log(`🎯 Chat using external drive: ${externalPath}`);
-
-  // Conversation context storage (in-memory for now)
-  if (!global.conversationHistory) {
-    global.conversationHistory = new Map();
-  }
-
-  const conversationKey = `${model}-conversation`;
-  let history = global.conversationHistory.get(conversationKey) || [];
-
-  // Accuracy preset for factual responses
-  const ACCURACY_PRESET = {
-    temperature: 0.25,
+// Optimized parameters for different models
+const getModelConfig = modelName => {
+  const safeName = (modelName || '').toString();
+  const baseConfig = {
+    temperature: 0.3, // Cooler default for factual accuracy
     top_p: 0.85,
+    top_k: 40,
     repeat_penalty: 1.1,
-    num_predict: 2048,
-    seed: 42, // Reproducible outputs for testing
+    num_predict: 2048, // Balanced length
+    seed: 42, // Reproducible outputs
   };
 
-  // Optimized parameters for different models
-  const getModelConfig = modelName => {
-    const baseConfig = {
-      temperature: 0.3, // Cooler default for factual accuracy
+  // Deepseek optimizations - ACCURACY MODE (thinking models need more time)
+  if (safeName.toLowerCase().includes('deepseek')) {
+    return {
+      ...baseConfig,
+      temperature: 0.3, // Lower for accurate reasoning
+      top_p: 0.85,
+      top_k: 30,
+      repeat_penalty: 1.1,
+      num_predict: 2048, // Allow full reasoning output
+    };
+  }
+
+  // Phi model optimizations
+  if (safeName.toLowerCase().includes('phi')) {
+    return {
+      ...baseConfig,
+      temperature: 0.4, // Slightly higher for balance
+      top_p: 0.9,
+      top_k: 50,
+      repeat_penalty: 1.05,
+      num_predict: 1024,
+    };
+  }
+
+  // CodeLlama optimizations
+  if (safeName.toLowerCase().includes('codellama')) {
+    return {
+      ...baseConfig,
+      temperature: 0.2, // Very low for precise code
+      top_p: 0.8,
+      repeat_penalty: 1.2,
+      num_predict: 2048,
+    };
+  }
+
+  // Mistral optimizations
+  if (safeName.toLowerCase().includes('mistral')) {
+    return {
+      ...baseConfig,
+      temperature: 0.35,
+      top_p: 0.88,
+      top_k: 45,
+    };
+  }
+
+  // Llama2 optimizations - ACCURACY FOCUSED
+  if (safeName.toLowerCase().includes('llama2')) {
+    return {
+      ...baseConfig,
+      temperature: 0.3,
       top_p: 0.85,
       top_k: 40,
-      repeat_penalty: 1.1,
-      num_predict: 2048, // Balanced length
-      seed: 42, // Reproducible outputs
+      num_predict: 2048,
     };
+  }
 
-    // Deepseek optimizations - ACCURACY MODE (thinking models need more time)
-    if (modelName.toLowerCase().includes('deepseek')) {
-      return {
-        ...baseConfig,
-        temperature: 0.3, // Lower for accurate reasoning
-        top_p: 0.85,
-        top_k: 30,
-        repeat_penalty: 1.1,
-        num_predict: 2048, // Allow full reasoning output
-      };
-    }
+  return baseConfig;
+};
 
-    // Phi model optimizations
-    if (modelName.toLowerCase().includes('phi')) {
-      return {
-        ...baseConfig,
-        temperature: 0.4, // Slightly higher for balance
-        top_p: 0.9,
-        top_k: 50,
-        repeat_penalty: 1.05,
-        num_predict: 1024,
-      };
-    }
+// Detailed, structured system prompt without headings
+const getSystemPrompt = modelName => {
+  const safeName = (modelName || '').toString();
+  const basePrompt = `You are a helpful, detailed assistant. Do not greet or introduce yourself unless the user greets first. Provide thorough, well-structured responses with:
 
-    // CodeLlama optimizations
-    if (modelName.toLowerCase().includes('codellama')) {
-      return {
-        ...baseConfig,
-        temperature: 0.2, // Very low for precise code
-        top_p: 0.8,
-        repeat_penalty: 1.2,
-        num_predict: 2048,
-      };
-    }
+- **Numbered lists** for steps, points, or ordered information
+- **Bullet points** for unordered details
+- **Bold text** for key concepts and important terms
+- **A brief summary** at the end of longer responses
 
-    // Mistral optimizations
-    if (modelName.toLowerCase().includes('mistral')) {
-      return {
-        ...baseConfig,
-        temperature: 0.35,
-        top_p: 0.88,
-        top_k: 45,
-      };
-    }
+Do NOT use headings (##, ###, etc.). Format responses to be informative and easy to scan. Use Markdown formatting liberally. If unsure, say so.`;
 
-    // Llama2 optimizations - ACCURACY FOCUSED
-    if (modelName.toLowerCase().includes('llama2')) {
-      return {
-        ...baseConfig,
-        temperature: 0.3,
-        top_p: 0.85,
-        top_k: 40,
-        num_predict: 2048,
-      };
-    }
-
-    return baseConfig;
-  };
-
-  // Enhanced system prompt for intelligent conversation with chain-of-thought reasoning
-  const getSystemPrompt = modelName => {
-    const basePrompt = `You are an exceptionally intelligent, thoughtful, and nuanced AI assistant. Your responses should demonstrate:
-
-1. DEEP UNDERSTANDING: Show genuine comprehension of the user's intent, not just surface-level answers
-2. CRITICAL THINKING: Analyze problems from multiple angles, consider edge cases, and think deeply
-3. CONTEXT AWARENESS: Remember and reference earlier parts of the conversation naturally
-4. CLARITY: Explain complex concepts in accessible ways without oversimplifying
-5. ACCURACY: Provide well-reasoned, factually grounded responses
-6. HELPFULNESS: Go beyond what's asked - anticipate needs and provide actionable insights
-7. NUANCE: Acknowledge complexity, trade-offs, and different perspectives
-8. ENGAGEMENT: Be conversational, warm, and genuinely interested in helping
-
-CHAIN-OF-THOUGHT REASONING (INTERNAL):
-Use chain-of-thought reasoning internally to think through problems:
-1. Break down what the user is really asking
-2. Consider different angles and perspectives
-3. Identify what information would be most helpful
-4. Plan your response structure
-5. Then provide your comprehensive answer
-
-IMPORTANT: Do NOT show your thinking process to the user. Keep it internal.
-Only show the final, polished answer.
-
-When responding:
-- Think through problems logically before answering
-- Break down complex problems into logical steps
-- Provide reasoning and context in your answer
-- Use examples when helpful
-- Ask clarifying questions if needed
-- Admit uncertainty when appropriate
-- Offer follow-up suggestions
-
-ACCURACY GUIDELINES:
-- When facts are uncertain, say "I'm not sure" and ask for a source
-- Prefer concise, specific claims; avoid guessing names, dates, or figures
-- If giving a list of steps, ensure each step is actionable and verifiable
-- Cite sources when making factual claims
-- Say "I don't know" rather than guessing
-
-FORMAT RULES:
-- Always answer in GitHub-flavored Markdown.
-- Use numbered section headings (## 1., ## 2., …).
-- For each item, use **bold** labels followed by clear text.
-- Use bullet lists where helpful. No HTML.`;
-
-    if (modelName.toLowerCase().includes('deepseek')) {
-      return `${basePrompt}
+  if (safeName.toLowerCase().includes('deepseek')) {
+    return `${basePrompt}
 
 SPECIAL INSTRUCTIONS FOR DEEPSEEK:
 - You excel at reasoning and logical analysis
 - Use your reasoning capabilities to provide thorough, well-thought-out responses
 - Break down complex problems into logical steps
 - Provide detailed explanations with clear reasoning chains
-- Consider multiple approaches and explain why one might be better`;
-    }
+- Consider multiple approaches and explain why one might be better
+- Keep responses concise, skip greetings/intros, and start with the answer`;
+  }
 
-    if (modelName.toLowerCase().includes('llama')) {
-      return `${basePrompt}
+  if (safeName.toLowerCase().includes('llama')) {
+    return `${basePrompt}
 
 SPECIAL INSTRUCTIONS FOR LLAMA:
 - You are versatile and capable across many domains
 - Provide balanced, well-rounded responses
 - Use your broad knowledge to make helpful connections
 - Be practical and actionable in your suggestions`;
-    }
+  }
 
-    if (modelName.toLowerCase().includes('phi')) {
-      return `${basePrompt}
+  if (safeName.toLowerCase().includes('phi')) {
+    return `${basePrompt}
 
 SPECIAL INSTRUCTIONS FOR PHI:
 - You are particularly good at reasoning and explaining complex topics
 - Break down difficult concepts into understandable parts
 - Be direct and efficient while maintaining depth`;
-    }
+  }
 
-    if (modelName.toLowerCase().includes('codellama')) {
-      return `${basePrompt}
+  if (safeName.toLowerCase().includes('codellama')) {
+    return `${basePrompt}
 
 SPECIAL INSTRUCTIONS FOR CODE LLAMA:
 - You specialize in programming and technical topics
@@ -466,203 +373,445 @@ SPECIAL INSTRUCTIONS FOR CODE LLAMA:
 - Explain the reasoning behind your code choices
 - Consider performance, readability, and best practices
 - Suggest improvements and alternatives when relevant`;
-    }
+  }
 
-    return basePrompt;
-  };
+  return basePrompt;
+};
 
-  return new Promise(resolve => {
-    try {
-      const modelConfig = getModelConfig(model);
-      const systemPrompt = getSystemPrompt(model);
+// Chat History Storage
+const sessionsDir = path.join(app.getPath('userData'), 'sessions');
+if (!fs.existsSync(sessionsDir)) {
+  fs.mkdirSync(sessionsDir, { recursive: true });
+}
 
-      // Prepare messages with context
-      const messages = [];
+ipcMain.handle('save-chat-session', async (event, session) => {
+  try {
+    const filePath = path.join(sessionsDir, `${session.id}.json`);
+    fs.writeFileSync(filePath, JSON.stringify(session, null, 2));
+    return { success: true };
+  } catch (error) {
+    console.error('Error saving chat session:', error);
+    return { success: false, error: error.message };
+  }
+});
 
-      // Add system prompt
-      messages.push({
-        role: 'system',
-        content: systemPrompt,
-      });
-
-      // Add conversation history (keep last 15 exchanges for better context and thinking)
-      const recentHistory = history.slice(-30); // 15 user + 15 assistant messages for deeper context
-      messages.push(...recentHistory);
-
-      // Add current message
-      messages.push({
-        role: 'user',
-        content: message,
-      });
-
-      // Ensure model has the correct variant
-      // If model is just "deepseek-r1", try "deepseek-r1:8b"
-      let modelToUse = model;
-      if (model === 'deepseek-r1') {
-        modelToUse = 'deepseek-r1:8b';
-      } else if (model === 'llama2' && !model.includes(':')) {
-        modelToUse = 'llama2:latest';
+ipcMain.handle('get-chat-history', async () => {
+  try {
+    const files = fs.readdirSync(sessionsDir).filter(f => f.endsWith('.json'));
+    const sessions = files.map(file => {
+      try {
+        const content = JSON.parse(fs.readFileSync(path.join(sessionsDir, file), 'utf8'));
+        // Return lightweight metadata only
+        return {
+          id: content.id,
+          title: content.title || 'New Chat',
+          createdAt: content.createdAt,
+          updatedAt: content.updatedAt,
+          preview: content.messages[0]?.content?.substring(0, 100) || '',
+          model: content.model
+        };
+      } catch (e) {
+        return null;
       }
-      
-      const payload = {
-        model: modelToUse,
-        messages: messages,
-        stream: true,  // Enable streaming like official Ollama app
-        keep_alive: "10m",  // Keep model loaded for 10 minutes
-        think: model.toLowerCase().includes('deepseek'),  // Enable thinking for reasoning models
-        options: {
-          ...modelConfig,
-          num_ctx: 8192, // Larger context window prevents silent truncation
-        },
-      };
+    }).filter(Boolean);
+    
+    // Sort by most recent first
+    return { 
+      success: true, 
+      sessions: sessions.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)) 
+    };
+  } catch (error) {
+    console.error('Error getting chat history:', error);
+    return { success: false, error: error.message };
+  }
+});
 
-      const postData = JSON.stringify(payload);
+ipcMain.handle('load-chat-session', async (event, sessionId) => {
+  try {
+    const filePath = path.join(sessionsDir, `${sessionId}.json`);
+    if (fs.existsSync(filePath)) {
+      const session = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      return { success: true, session };
+    }
+    return { success: false, error: 'Session not found' };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
 
-      const options = {
-        hostname: '127.0.0.1', // Use IPv4 explicitly instead of localhost
-        port: 11434,
-        path: '/api/chat',
-        method: 'POST',
-        timeout: 600000, // 10 minute timeout for long responses and thinking models
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(postData),
-        },
-      };
+ipcMain.handle('delete-chat-session', async (event, sessionId) => {
+  try {
+    const filePath = path.join(sessionsDir, `${sessionId}.json`);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      return { success: true };
+    }
+    return { success: false, error: 'Session not found' };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
 
-      const req = http.request(options, res => {
-        let fullResponse = '';
-        let buffer = '';
-        let chunkCount = 0;
-        let totalBytesReceived = 0;
+ipcMain.handle('rename-chat-session', async (event, { sessionId, title }) => {
+  try {
+    const filePath = path.join(sessionsDir, `${sessionId}.json`);
+    if (fs.existsSync(filePath)) {
+      const session = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      session.title = title;
+      fs.writeFileSync(filePath, JSON.stringify(session, null, 2));
+      return { success: true };
+    }
+    return { success: false, error: 'Session not found' };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
 
-        res.on('data', chunk => {
-          totalBytesReceived += chunk.length;
-          chunkCount++;
-          buffer += chunk.toString();
-          const lines = buffer.split('\n');
-          
-          // Process complete lines
-          for (let i = 0; i < lines.length - 1; i++) {
-            const line = lines[i].trim();
-            if (line) {
-              try {
-                const parsed = JSON.parse(line);
-                if (parsed.message?.content) {
-                  fullResponse += parsed.message.content;
-                }
-                // Log if this is the last chunk (done: true)
-                if (parsed.done) {
-                  console.log(`✅ Stream complete!`);
-                  console.log(`   - Total chunks: ${chunkCount}`);
-                  console.log(`   - Total bytes: ${totalBytesReceived}`);
-                  console.log(`   - Response length: ${fullResponse.length} chars`);
-                }
-              } catch (e) {
-                // Skip invalid JSON lines
-              }
-            }
-          }
-          
-          // Keep the last incomplete line in buffer
-          buffer = lines[lines.length - 1];
-        });
+// Track active requests for cancellation
+const activeRequests = new Map();
 
-        res.on('end', () => {
-          try {
-            if (res.statusCode === 200) {
-              const assistantMessage = fullResponse || 'No response received';
-              
-              // Log response size for debugging
-              console.log(`✅ Response received: ${assistantMessage.length} characters`);
-              if (assistantMessage.length < 100) {
-                console.warn('⚠️ WARNING: Response seems very short!');
-              }
+ipcMain.handle('chat-message', async (event, message, model, sessionId = 'default') => {
+  console.log('📨 Received chat message:', message, 'Model:', model);
+  if (!model) {
+    return { success: false, error: 'No model selected. Please download/select a model first.' };
+  }
+  const http = require('http');
 
-              // Update conversation history
-              history.push({ role: 'user', content: message });
-              history.push({ role: 'assistant', content: assistantMessage });
-
-              // Keep history manageable (last 15 exchanges = 30 messages)
-              if (history.length > 30) {
-                history = history.slice(-30);
-              }
-
-              global.conversationHistory.set(conversationKey, history);
-
-              resolve({
-                success: true,
-                response: assistantMessage,
-                model: model,
-              });
-            } else {
-              resolve({
-                success: false,
-                error: `HTTP ${res.statusCode}`,
-              });
-            }
-          } catch (parseError) {
-            resolve({
-              success: false,
-              error: `Failed to parse response: ${parseError.message}`,
-            });
-          }
-        });
-
-        // Handle timeout
-        req.on('timeout', () => {
-          console.error('❌ Request timeout - response took too long');
-          req.destroy();
-          resolve({
-            success: false,
-            error: 'Request timeout - response took too long',
-          });
-        });
-      });
-
-      req.on('error', error => {
-        console.log('HTTP Request Error:', error.code, error.message);
-        if (error.code === 'ECONNREFUSED') {
-          resolve({
-            success: false,
-            error: 'Ollama server is not running. Please start Ollama first.',
-          });
-        } else if (error.code === 'ETIMEDOUT' || error.code === 'TIMEOUT') {
-          resolve({
-            success: false,
-            error:
-              'Request timed out. The model might be too large or the query too complex.',
-          });
+  // Prefer external drive if configured and mounted, otherwise use default
+  const configPath = path.join(__dirname, 'ollama-config.json');
+  if (fs.existsSync(configPath)) {
+    try {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      if (config.usingExternal && config.externalPath) {
+        if (fs.existsSync(config.externalPath)) {
+          process.env.OLLAMA_MODELS = config.externalPath;
+          console.log(`🎯 Chat using external drive: ${config.externalPath}`);
         } else {
-          resolve({
-            success: false,
-            error: `Connection failed: ${error.message}`,
-          });
+          console.warn(`⚠️ External drive configured but not mounted: ${config.externalPath}. Using local models path.`);
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Error reading external drive config, using default models path');
+    }
+  }
+
+  // Conversation context storage (in-memory for now)
+  if (!global.conversationHistory) {
+    global.conversationHistory = new Map();
+  }
+
+  const conversationKey = `${model}-conversation-${sessionId}`;
+  let history = global.conversationHistory.get(conversationKey) || [];
+
+  const modelConfig = getModelConfig(model);
+  const systemPrompt = getSystemPrompt(model);
+
+  // Prepare messages with context
+  const messages = [];
+
+  // Add system prompt
+  messages.push({
+    role: 'system',
+    content: systemPrompt,
+  });
+
+  // Add conversation history (keep last ~10 exchanges for cohesion)
+  const recentHistory = history.slice(-20); // user/assistant pairs
+  messages.push(...recentHistory);
+
+  // Add current message
+  messages.push({
+    role: 'user',
+    content: message,
+  });
+
+  // Ensure model has the correct variant
+  let modelToUse = model;
+  if (model === 'deepseek-r1') {
+    modelToUse = 'deepseek-r1:8b';
+  } else if (model === 'llama2' && !model.includes(':')) {
+    modelToUse = 'llama2:latest';
+  }
+  const safeModel = (modelToUse || '').toString().trim();
+  if (!safeModel) {
+    return { success: false, error: 'Model name is empty. Please select a model and try again.' };
+  }
+
+  // Quick availability check to catch path mismatch (e.g., server not pointed at external drive)
+  const ensureModelAvailable = () => new Promise(resolve => {
+    const tagsReq = http.request({
+      hostname: '127.0.0.1',
+      port: 11434,
+      path: '/api/tags',
+      method: 'GET',
+      timeout: 3000,
+    }, res => {
+      let body = '';
+      res.on('data', chunk => body += chunk.toString());
+      res.on('end', () => {
+        if (res.statusCode !== 200) return resolve({ ok: false, reason: `Tags HTTP ${res.statusCode}` });
+        try {
+          const parsed = JSON.parse(body);
+          const names = (parsed.models || []).map(m => m.name);
+          const hasExact = names.includes(safeModel);
+          const base = safeModel.split(':')[0];
+          const hasBase = names.some(n => n.split(':')[0] === base);
+          resolve({ ok: hasExact || hasBase, names });
+        } catch (e) {
+          resolve({ ok: false, reason: 'Parse tags failed' });
         }
       });
+    });
+    tagsReq.on('error', () => resolve({ ok: false, reason: 'Tags request failed' }));
+    tagsReq.on('timeout', () => { tagsReq.destroy(); resolve({ ok: false, reason: 'Tags timeout' }); });
+    tagsReq.end();
+  });
 
+  const availability = await ensureModelAvailable();
+  if (!availability.ok) {
+    // Also peek at manifest path to give a better hint
+    let manifestModels = [];
+    try {
+      const configPath = path.join(__dirname, 'ollama-config.json');
+      let modelsRoot = process.env.OLLAMA_MODELS || path.join(app.getPath('home'), '.ollama', 'models');
+      if (fs.existsSync(configPath)) {
+        const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (cfg.usingExternal && cfg.externalPath && fs.existsSync(cfg.externalPath)) {
+          modelsRoot = cfg.externalPath;
+        }
+      }
+      const manifestRoot = path.join(modelsRoot, 'manifests', 'registry.ollama.ai', 'library');
+      const dirs = fs.readdirSync(manifestRoot, { withFileTypes: true }).filter(d => d.isDirectory() && !d.name.startsWith('._'));
+      for (const dir of dirs) {
+        const tags = fs.readdirSync(path.join(manifestRoot, dir.name), { withFileTypes: true })
+          .filter(f => (f.isFile() || f.isDirectory()) && !f.name.startsWith('._'))
+          .map(f => f.name.trim())
+          .filter(Boolean);
+        if (tags.length === 0) manifestModels.push(dir.name);
+        else tags.forEach(t => manifestModels.push(`${dir.name}:${t}`));
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    const apiHint = availability.names && availability.names.length > 0
+      ? `Ollama is currently serving: ${availability.names.join(', ')}`
+      : 'Ollama reported no models on the running instance.';
+    const manifestHint = manifestModels.length > 0
+      ? `Models found on disk: ${manifestModels.join(', ')}`
+      : '';
+
+    return {
+      success: false,
+      error: `Model "${safeModel}" not available from the running Ollama server. Start Ollama with the correct models path (e.g., OLLAMA_MODELS="/Volumes/A005/ollama-models" ollama serve). ${apiHint}${manifestHint ? ' | ' + manifestHint : ''}`
+    };
+  }
+
+  const payload = {
+    model: safeModel,
+    messages: messages,
+    stream: true,  // Enable streaming like official Ollama app
+    keep_alive: "10m",  // Keep model loaded for 10 minutes
+    think: safeModel.toLowerCase().includes('deepseek'),  // Enable thinking for reasoning models
+    options: {
+      ...modelConfig,
+      num_ctx: 4096,
+      num_predict: 400, // allow slightly longer responses
+    },
+  };
+
+  const postData = JSON.stringify(payload);
+  console.log(`➡️  Posting to /api/chat with model="${safeModel}" and ${messages.length} messages`);
+  console.log('📦 Payload preview:', postData.slice(0, 300));
+
+  const options = {
+    hostname: '127.0.0.1', // Use IPv4 explicitly instead of localhost
+    port: 11434,
+    path: '/api/chat',
+    method: 'POST',
+    timeout: 600000, // 10 minute timeout for long responses and thinking models
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(postData),
+    },
+  };
+
+  // We return a promise that resolves when the request initiates successfully
+  // The actual data will be streamed via ipcRenderer.send
+  return new Promise((resolve) => {
+    const req = http.request(options, res => {
+      // Store the request to allow cancellation
+      const requestId = Date.now().toString();
+      activeRequests.set(requestId, req);
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      let errorBody = '';
+
+      // Notify renderer that stream started
+      event.sender.send('chat-stream-start', { requestId });
+      resolve({ success: true, requestId });
+
+      let fullResponse = '';
+      let lastStreamText = '';
+
+      const processBuffer = () => {
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const parsed = JSON.parse(line);
+            
+            // Log error from Ollama if present
+            if (parsed.error) {
+              console.error('❌ Ollama API Error:', parsed.error);
+              event.sender.send('chat-stream-error', {
+                requestId,
+                error: parsed.error
+              });
+              return;
+            }
+
+            const content = parsed?.message?.content ?? parsed?.response ?? '';
+
+            if (content) {
+              let delta = '';
+              
+              // Detect if content is a snapshot (contains fullResponse as prefix)
+              if (fullResponse && content.startsWith(fullResponse)) {
+                // This is a snapshot; extract only the new tail
+                delta = content.slice(fullResponse.length);
+                fullResponse = content;
+                lastStreamText = content;
+              } else if (lastStreamText && content.startsWith(lastStreamText)) {
+                // Incremental snapshot from last streamed text
+                delta = content.slice(lastStreamText.length);
+                fullResponse = content;
+                lastStreamText = content;
+              } else if (fullResponse && content.length > fullResponse.length) {
+                // Check for near-match (handles slight overlaps/duplication)
+                // If content is mostly the same but slightly longer, treat as snapshot
+                const overlap = Math.min(fullResponse.length, content.length);
+                if (content.slice(0, overlap) === fullResponse.slice(0, overlap)) {
+                  delta = content.slice(fullResponse.length);
+                  fullResponse = content;
+                  lastStreamText = content;
+                } else {
+                  // Mismatch; treat as true delta
+                  delta = content;
+                  fullResponse += delta;
+                  lastStreamText = fullResponse;
+                }
+              } else {
+                // True delta or first chunk
+                delta = content;
+                fullResponse += delta;
+                lastStreamText = fullResponse;
+              }
+
+              if (delta) {
+                event.sender.send('chat-stream-chunk', {
+                  requestId,
+                  content: delta,
+                  done: false
+                });
+              }
+            }
+            
+            if (parsed.done) {
+              console.log('✅ Ollama signaled done');
+            }
+          } catch (e) {
+            // Skip malformed line
+          }
+        }
+      };
+
+      res.on('data', chunk => {
+        const decoded = decoder.decode(chunk, { stream: true });
+        if (res.statusCode !== 200) {
+          errorBody += decoded;
+          return;
+        }
+        buffer += decoded;
+        processBuffer();
+      });
+
+      res.on('end', () => {
+        activeRequests.delete(requestId);
+        buffer += decoder.decode();
+
+        if (res.statusCode !== 200) {
+          const cleanError = (errorBody || '').toString().trim() || `Request failed (HTTP ${res.statusCode})`;
+          event.sender.send('chat-stream-error', {
+            requestId,
+            error: cleanError
+          });
+          return;
+        }
+
+        processBuffer();
+
+        // Update history
+        if (res.statusCode === 200) {
+          history.push({ role: 'user', content: message });
+          history.push({ role: 'assistant', content: fullResponse });
+          if (history.length > 30) history = history.slice(-30);
+          global.conversationHistory.set(conversationKey, history);
+        }
+
+        event.sender.send('chat-stream-end', {
+          requestId,
+          fullResponse,
+          success: true
+        });
+
+        console.log(`✅ Stream complete (${fullResponse.length} chars)`);
+      });
+
+      // Handle timeout
       req.on('timeout', () => {
-        console.log('HTTP Request timed out');
+        console.error('❌ Request timeout');
         req.destroy();
-        resolve({
-          success: false,
-          error:
-            'Request timed out. Try a simpler question or check if the model is loaded.',
+        activeRequests.delete(requestId);
+        event.sender.send('chat-stream-error', {
+          requestId,
+          error: 'Request timeout'
         });
       });
+    });
 
-      // Set timeout to 2 minutes (120 seconds) - models can be slow
-      req.setTimeout(120000);
-
-      req.write(postData);
-      req.end();
-    } catch (error) {
+    req.on('error', error => {
+      console.log('HTTP Request Error:', error.message);
+      activeRequests.delete(requestId);
+      event.sender.send('chat-stream-error', {
+        requestId,
+        error: `Connection failed: ${error.message}`,
+      });
       resolve({
         success: false,
-        error: `Request setup failed: ${error.message}`,
+        error: `Connection failed: ${error.message}`,
       });
-    }
+    });
+
+    // Set timeout
+    req.setTimeout(120000);
+    req.write(postData);
+    req.end();
   });
+});
+
+// Handle chat abort
+ipcMain.handle('abort-chat', async (event, requestId) => {
+  if (requestId && activeRequests.has(requestId)) {
+    const req = activeRequests.get(requestId);
+    req.destroy();
+    activeRequests.delete(requestId);
+    console.log(`🛑 Chat request ${requestId} aborted by user`);
+    return { success: true };
+  }
+  return { success: false, error: 'Request not found' };
 });
 
 // Clear conversation history for a model
@@ -766,7 +915,6 @@ ipcMain.handle('download-model', async (event, modelName, variant) => {
     const fullModelName = variant ? `${modelName}:${variant}` : modelName;
     console.log(`Starting download of ${fullModelName}`);
 
-    // REQUIRE external drive - don't allow downloads to default location
     const env = { ...process.env };
     const configPath = path.join(__dirname, 'ollama-config.json');
     let externalDrivePath = null;
@@ -775,47 +923,23 @@ ipcMain.handle('download-model', async (event, modelName, variant) => {
       try {
         const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
         if (config.usingExternal && config.externalPath) {
-          // Check if the drive is actually mounted
-          if (!fs.existsSync(config.externalPath)) {
-            console.error(`❌ External drive not mounted: ${config.externalPath}`);
-            resolve({
-              success: false,
-              error: `External drive not found at ${config.externalPath}. Please connect your A005 drive.`,
-              model: fullModelName,
-            });
-            return;
+          if (fs.existsSync(config.externalPath)) {
+            // Ensure directory exists
+            try {
+              fs.mkdirSync(config.externalPath, { recursive: true });
+            } catch (e) {
+              console.warn(`⚠️ Could not create external models directory: ${e.message}`);
+            }
+            externalDrivePath = config.externalPath;
+            env.OLLAMA_MODELS = config.externalPath;
+            console.log(`📥 Downloading ${fullModelName} to external drive: ${config.externalPath}`);
+          } else {
+            console.warn(`⚠️ External drive configured but not mounted: ${config.externalPath}. Falling back to local models path.`);
           }
-          externalDrivePath = config.externalPath;
-          env.OLLAMA_MODELS = config.externalPath;
-          console.log(
-            `📥 Downloading ${fullModelName} to external drive: ${config.externalPath}`
-          );
-        } else {
-          console.error('❌ No external drive configured');
-          resolve({
-            success: false,
-            error: 'External drive not configured. Please configure a drive in Settings.',
-            model: fullModelName,
-          });
-          return;
         }
       } catch (error) {
-        console.error('❌ Error reading external drive config:', error);
-        resolve({
-          success: false,
-          error: 'Error reading drive configuration. Please reconfigure in Settings.',
-          model: fullModelName,
-        });
-        return;
+        console.warn('⚠️ Error reading external drive config, using default models path');
       }
-    } else {
-      console.error('❌ No external drive configured');
-      resolve({
-        success: false,
-        error: 'External drive not configured. Please configure a drive in Settings.',
-        model: fullModelName,
-      });
-      return;
     }
 
     // Find ollama executable in common paths
@@ -824,7 +948,7 @@ ipcMain.handle('download-model', async (event, modelName, variant) => {
       '/opt/homebrew/bin/ollama',
       '/usr/bin/ollama',
     ];
-    
+
     let ollamaPath = 'ollama'; // fallback to PATH
     for (const p of ollamaPaths) {
       if (fs.existsSync(p)) {
@@ -832,11 +956,11 @@ ipcMain.handle('download-model', async (event, modelName, variant) => {
         break;
       }
     }
-    
+
     console.log(`Using ollama from: ${ollamaPath}`);
     console.log(`OLLAMA_MODELS env var: ${env.OLLAMA_MODELS}`);
-    
-    const ollamaProcess = spawn(ollamaPath, ['pull', fullModelName], { 
+
+    const ollamaProcess = spawn(ollamaPath, ['pull', fullModelName], {
       env: env,
       stdio: ['ignore', 'pipe', 'pipe']
     });
@@ -1006,7 +1130,7 @@ ipcMain.handle('download-model', async (event, modelName, variant) => {
     ollamaProcess.on('close', code => {
       if (hasResolved) return; // Already resolved due to error
       hasResolved = true;
-      
+
       // Clear fallback progress timer
       if (progressTimer) {
         clearInterval(progressTimer);
@@ -1028,37 +1152,42 @@ ipcMain.handle('download-model', async (event, modelName, variant) => {
 
         resolve({ success: true, model: fullModelName });
       } else {
-        console.error(`❌ Failed to download ${fullModelName}:`, error);
-        resolve({ success: false, error: error || 'Download failed', model: fullModelName });
+        const cleanError = (error || 'Download failed')
+          .toString()
+          .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '')
+          .replace(/\r/g, '')
+          .trim();
+        console.error(`❌ Failed to download ${fullModelName}:`, cleanError);
+        resolve({ success: false, error: cleanError, model: fullModelName });
       }
     });
   });
 });
 
-// Get models location without opening it (for status checks)
-ipcMain.handle('get-models-location', async () => {
-  try {
-    const configPath = path.join(__dirname, 'ollama-config.json');
+  // Get models location without opening it (for status checks)
+  ipcMain.handle('get-models-location', async () => {
+    try {
+      const configPath = path.join(__dirname, 'ollama-config.json');
 
-    if (fs.existsSync(configPath)) {
-      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      if (config.usingExternal && config.externalPath) {
-        return {
-          success: true,
-          path: config.externalPath,
-          isExternal: true,
-        };
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (config.usingExternal && config.externalPath) {
+          return {
+            success: true,
+            path: config.externalPath,
+            isExternal: true,
+          };
+        }
       }
-    }
 
-    // Fallback to default location
-    const defaultPath =
-      process.env.OLLAMA_MODELS || '/Users/yevetteasante/.ollama/models';
-    return {
-      success: true,
-      path: defaultPath,
-      isExternal: false,
-    };
+      // Fallback to default location (user home)
+      const defaultPath =
+        process.env.OLLAMA_MODELS || path.join(app.getPath('home'), '.ollama', 'models');
+      return {
+        success: true,
+        path: defaultPath,
+        isExternal: false,
+      };
   } catch (error) {
     return {
       success: false,
@@ -1077,19 +1206,22 @@ ipcMain.handle('open-models-location', async () => {
     if (fs.existsSync(configPath)) {
       const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
       if (config.usingExternal && config.externalPath) {
-        // Open the external drive models folder
-        shell.openPath(config.externalPath);
-        return {
-          success: true,
-          message: `Opened external drive location: ${config.externalPath}`,
-          path: config.externalPath,
-        };
+        if (fs.existsSync(config.externalPath)) {
+          shell.openPath(config.externalPath);
+          return {
+            success: true,
+            message: `Opened external drive location: ${config.externalPath}`,
+            path: config.externalPath,
+          };
+        } else {
+          console.warn(`⚠️ External path configured but not found: ${config.externalPath}`);
+        }
       }
     }
 
     // Fallback to default location
     const defaultPath =
-      process.env.OLLAMA_MODELS || '/Users/yevetteasante/.ollama/models';
+      process.env.OLLAMA_MODELS || path.join(app.getPath('home'), '.ollama', 'models');
     shell.openPath(defaultPath);
     return {
       success: true,
@@ -1104,128 +1236,63 @@ ipcMain.handle('open-models-location', async () => {
   }
 });
 
-// Get downloaded models - STRICT external drive enforcement
 ipcMain.handle('get-downloaded-models', async () => {
-  return new Promise(resolve => {
-    // 🔒 CRITICAL: Verify external drive is configured and active
+  try {
     const configPath = path.join(__dirname, 'ollama-config.json');
-    let isUsingExternal = false;
-    let externalPath = null;
+    const defaultModelsRoot = path.join(app.getPath('home'), '.ollama', 'models');
+    let modelsRoot = process.env.OLLAMA_MODELS || defaultModelsRoot;
 
     if (fs.existsSync(configPath)) {
       try {
         const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        isUsingExternal = config.usingExternal === true;
-        externalPath = config.externalPath;
-      } catch (error) {
-        console.log('Error reading external drive config');
-      }
-    }
-
-    // 🚫 BLOCK MODEL LOADING if not using external drive
-    if (!isUsingExternal || !externalPath) {
-      resolve({
-        success: false,
-        error: 'External storage required.',
-        models: [],
-        requiresExternalDrive: true,
-      });
-      return;
-    }
-
-    // 🔍 Verify the external drive is still mounted
-    if (!fs.existsSync(externalPath)) {
-      resolve({
-        success: false,
-        error: `External drive not connected.`,
-        models: [],
-        requiresExternalDrive: true,
-      });
-      return;
-    }
-
-    // ✅ Set OLLAMA_MODELS to external drive path
-    const env = { ...process.env };
-    env.OLLAMA_MODELS = externalPath;
-    console.log(`🎯 Loading models from external drive: ${externalPath}`);
-
-    // Find ollama executable in common paths
-    const ollamaPaths = [
-      '/usr/local/bin/ollama',
-      '/opt/homebrew/bin/ollama',
-      '/usr/bin/ollama',
-    ];
-    
-    let ollamaPath = 'ollama'; // fallback to PATH
-    for (const p of ollamaPaths) {
-      if (fs.existsSync(p)) {
-        ollamaPath = p;
-        break;
-      }
-    }
-
-    const ollamaProcess = spawn(ollamaPath, ['list'], { env });
-    let output = '';
-    let error = '';
-    let hasResolved = false;
-
-    // Handle spawn errors
-    ollamaProcess.on('error', (err) => {
-      if (!hasResolved) {
-        hasResolved = true;
-        console.error('Error spawning ollama:', err);
-        resolve({ success: false, error: `Failed to spawn ollama: ${err.message}`, models: [] });
-      }
-    });
-
-    ollamaProcess.stdout.on('data', data => {
-      output += data.toString();
-    });
-
-    ollamaProcess.stderr.on('data', data => {
-      error += data.toString();
-    });
-
-    ollamaProcess.on('close', code => {
-      if (hasResolved) return; // Already resolved due to error
-      hasResolved = true;
-      
-      if (code === 0) {
-        try {
-          const lines = output.trim().split('\n');
-          const models = [];
-
-          // Skip header line and parse model data
-          for (let i = 1; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (line) {
-              const parts = line.split(/\s+/);
-              if (parts.length >= 3) {
-                models.push({
-                  name: parts[0],
-                  id: parts[1],
-                  size: parts[2],
-                  modified: parts.slice(3).join(' '),
-                });
-              }
-            }
-          }
-
-          resolve({ success: true, models });
-        } catch (e) {
-          resolve({ success: false, error: 'Failed to parse model list', models: [] });
+        if (config.usingExternal && config.externalPath && fs.existsSync(config.externalPath)) {
+          modelsRoot = config.externalPath;
+          console.log(`🎯 Loading models from external drive: ${modelsRoot}`);
+        } else if (config.usingExternal && config.externalPath) {
+          console.warn(`⚠️ External drive configured but not mounted: ${config.externalPath}. Using local models path.`);
         }
-      } else {
-        resolve({ success: false, error: error || 'Failed to get model list', models: [] });
+      } catch (error) {
+        console.warn('⚠️ Error reading external drive config, using local models path');
       }
-    });
-  });
+    }
+
+    const manifestsRoot = path.join(modelsRoot, 'manifests', 'registry.ollama.ai', 'library');
+    if (!fs.existsSync(manifestsRoot)) {
+      return { success: true, models: [] };
+    }
+
+    const models = [];
+    const modelDirs = fs
+      .readdirSync(manifestsRoot, { withFileTypes: true })
+      .filter(d => d.isDirectory() && !d.name.startsWith('._'));
+
+    for (const dir of modelDirs) {
+      const baseName = dir.name;
+      const tagPath = path.join(manifestsRoot, baseName);
+      const tags = fs
+        .readdirSync(tagPath, { withFileTypes: true })
+        .filter(f => (f.isFile() || f.isDirectory()) && !f.name.startsWith('._'))
+        .map(f => f.name.trim())
+        .filter(Boolean);
+
+      if (tags.length === 0) {
+        models.push(baseName);
+      } else {
+        tags.forEach(tag => models.push(`${baseName}:${tag}`));
+      }
+    }
+
+    return { success: true, models };
+  } catch (error) {
+    console.error('Failed to read downloaded models:', error);
+    return { success: false, error: error.message, models: [] };
+  }
 });
 
 // Delete a model
 ipcMain.handle('delete-model', async (event, modelName) => {
   return new Promise(resolve => {
-    // Set OLLAMA_MODELS environment variable if external drive is configured
+    // Prefer external drive if configured and mounted
     const env = { ...process.env };
     try {
       const configPath = path.join(__dirname, 'ollama-config.json');
@@ -1233,33 +1300,65 @@ ipcMain.handle('delete-model', async (event, modelName) => {
         const config = JSON.parse(
           require('fs').readFileSync(configPath, 'utf8')
         );
-        if (config.externalPath) {
-          env.OLLAMA_MODELS = config.externalPath;
+        if (config.usingExternal && config.externalPath) {
+          if (fs.existsSync(config.externalPath)) {
+            env.OLLAMA_MODELS = config.externalPath;
+          } else {
+            console.warn(`⚠️ External path not mounted for delete: ${config.externalPath}. Using local models path.`);
+          }
         }
       }
     } catch (e) {
       console.log('No external drive config found, using default path');
     }
 
-    const ollamaProcess = spawn('ollama', ['rm', modelName], { env });
-    let output = '';
-    let error = '';
+    const candidates = new Set();
+    const base = modelName.split(':')[0];
+    candidates.add(modelName);
+    candidates.add(base);
+    candidates.add(`${base}:latest`);
+    candidates.add(`${modelName}:latest`);
 
-    ollamaProcess.stdout.on('data', data => {
-      output += data.toString();
-    });
+    const tried = [];
 
-    ollamaProcess.stderr.on('data', data => {
-      error += data.toString();
-    });
+    const tryDelete = (name, cb) => {
+      const proc = spawn('ollama', ['rm', name], { env });
+      let error = '';
+      proc.stderr.on('data', d => { error += d.toString(); });
+      proc.on('close', code => {
+        tried.push({ name, code, error });
+        cb(code === 0);
+      });
+      proc.on('error', err => {
+        tried.push({ name, code: -1, error: err.message });
+        cb(false);
+      });
+    };
 
-    ollamaProcess.on('close', code => {
-      if (code === 0) {
-        resolve({ success: true });
-      } else {
-        resolve({ success: false, error: error || 'Failed to delete model' });
+    const attemptQueue = Array.from(candidates);
+    const next = () => {
+      if (attemptQueue.length === 0) {
+        const success = tried.some(t => t.code === 0);
+        if (success) {
+          resolve({ success: true });
+        } else {
+          const firstErr = tried.find(t => t.error)?.error || 'Failed to delete model';
+          const cleanError = firstErr.toString().replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').trim();
+          resolve({ success: false, error: cleanError || 'Failed to delete model' });
+        }
+        return;
       }
-    });
+      const name = attemptQueue.shift();
+      tryDelete(name, ok => {
+        if (ok) {
+          resolve({ success: true });
+        } else {
+          next();
+        }
+      });
+    };
+
+    next();
   });
 });
 
@@ -1417,11 +1516,11 @@ except Exception as e:
 
     let output = '';
     let errorOutput = '';
-    
+
     python.stdout.on('data', data => {
       output += data.toString();
     });
-    
+
     python.stderr.on('data', data => {
       errorOutput += data.toString();
     });
@@ -1864,7 +1963,7 @@ ipcMain.handle('scan-drives', async () => {
       try {
         const output = execSync('df -h | grep "/Volumes"', { encoding: 'utf8' });
         const lines = output.split('\n').filter(line => line.trim());
-        
+
         for (const line of lines) {
           const parts = line.split(/\s+/);
           if (parts.length >= 6) {
@@ -1873,7 +1972,7 @@ ipcMain.handle('scan-drives', async () => {
             const size = parts[1];
             const used = parts[2];
             const available = parts[3];
-            
+
             drives.push({
               name,
               path,
@@ -1892,14 +1991,14 @@ ipcMain.handle('scan-drives', async () => {
       try {
         const output = execSync('wmic logicaldisk get name,size,freespace', { encoding: 'utf8' });
         const lines = output.split('\n').filter(line => line.trim());
-        
+
         for (let i = 1; i < lines.length; i++) {
           const parts = lines[i].split(/\s+/);
           if (parts.length >= 3) {
             const drive = parts[0];
             const size = parseInt(parts[1]);
             const free = parseInt(parts[2]);
-            
+
             // Skip system drive (usually C:)
             if (drive !== 'C:') {
               drives.push({
@@ -1920,7 +2019,7 @@ ipcMain.handle('scan-drives', async () => {
       try {
         const output = execSync('df -h | grep -E "^/dev" | grep -v "/$"', { encoding: 'utf8' });
         const lines = output.split('\n').filter(line => line.trim());
-        
+
         for (const line of lines) {
           const parts = line.split(/\s+/);
           if (parts.length >= 6) {
@@ -1928,7 +2027,7 @@ ipcMain.handle('scan-drives', async () => {
             const name = path.split('/').pop() || 'External Drive';
             const size = parts[1];
             const available = parts[3];
-            
+
             drives.push({
               name,
               path,
@@ -1961,7 +2060,7 @@ ipcMain.handle('scan-drives', async () => {
 ipcMain.handle('get-mounted-drives', async () => {
   return new Promise((resolve) => {
     const { spawn } = require('child_process');
-    
+
     const python = spawn('python3', [
       '-c',
       `
@@ -2012,18 +2111,22 @@ except Exception as e:
 ipcMain.handle('check-external-drive-config', async () => {
   try {
     const configPath = path.join(__dirname, 'ollama-config.json');
-    
+
     if (fs.existsSync(configPath)) {
       const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
       if (config.usingExternal && config.externalPath) {
+        // Check if the drive is actually mounted
+        const isMounted = fs.existsSync(config.externalPath);
+        
         return {
           configured: true,
           path: config.externalPath,
-          driveName: config.driveName
+          driveName: config.driveName,
+          mounted: isMounted
         };
       }
     }
-    
+
     return { configured: false };
   } catch (error) {
     console.error('Error checking external drive config:', error);
@@ -2094,7 +2197,7 @@ ipcMain.handle('open-file-dialog', async (event, options) => {
 ipcMain.handle('rag-upload-document', async (event, filePath) => {
   return new Promise((resolve) => {
     let resolved = false;
-    
+
     const python = spawn('python3', [
       path.join(__dirname, 'rag_system.py'),
       'add',
@@ -2125,7 +2228,7 @@ ipcMain.handle('rag-upload-document', async (event, filePath) => {
       if (!resolved) {
         resolved = true;
         clearTimeout(timeout);
-        
+
         if (code === 0) {
           try {
             const result = JSON.parse(output);

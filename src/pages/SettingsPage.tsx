@@ -51,17 +51,19 @@ export default function SettingsPage() {
           // Extract the drive path (e.g., /Volumes/A005 from /Volumes/A005/ollama-models)
           const drivePath = result.path.split('/ollama-models')[0]
           
-          // Check if the drive itself is mounted
-          const configuredDriveExists = drivesResult?.drives?.some((d: any) => d.path === drivePath)
+          // Check if the drive is verified as mounted by the backend (preferred)
+          // or fallback to checking the mounted drives list
+          const isMounted = result.mounted === true || 
+                           drivesResult?.drives?.some((d: any) => d.path === drivePath)
           
-          if (configuredDriveExists || justConfigured) {
+          if (isMounted || justConfigured) {
             // Drive is configured AND (mounted OR just configured) - show as configured
             console.log('✅ Configured drive found:', result.path)
             setExternalDriveConfigured(true)
             setDrivePath(result.path || '')
             
             // Auto-start Ollama on app startup if drive is configured and mounted (only once per session)
-            if (isInitialCheck && configuredDriveExists && !hasAttemptedAutoStart) {
+            if (isInitialCheck && isMounted && !hasAttemptedAutoStart) {
               setHasAttemptedAutoStart(true)
               localStorage.setItem('hasAttemptedOllamaAutoStart', 'true')
               console.log('🚀 Auto-starting Ollama with previously configured drive...')

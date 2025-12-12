@@ -7,11 +7,13 @@ import {
   SidebarGroupContent,
   useSidebar,
 } from "./ui/sidebar"
-import { MessageCircle, BookOpen, Code2, Settings, BarChart3, Zap, GitCompare, ChevronDown, TrendingUp, Briefcase, Wrench, Cloud } from "lucide-react"
+import { MessageCircle, BookOpen, Code2, Settings, BarChart3, Zap, GitCompare, ChevronDown, TrendingUp, Briefcase, Wrench, Cloud, PanelLeftClose, Brain } from "lucide-react"
 
 interface AppSidebarProps {
   currentPage?: string
   onNavigate?: (page: string) => void
+  onToggleHistory?: () => void
+  historyVisible?: boolean
 }
 
 interface NavCategory {
@@ -20,7 +22,7 @@ interface NavCategory {
   items: Array<{ label: string; icon: any; page: string; description?: string }>
 }
 
-export function AppSidebar({ currentPage = "chat", onNavigate }: AppSidebarProps) {
+export function AppSidebar({ currentPage = "chat", onNavigate, onToggleHistory, historyVisible }: AppSidebarProps) {
   const { open } = useSidebar()
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
     chat: true,
@@ -92,39 +94,68 @@ export function AppSidebar({ currentPage = "chat", onNavigate }: AppSidebarProps
 
   const renderNavItem = (item: { label: string; icon: any; page: string }) => {
     return (
-      <button
+      <div
         key={item.page}
         onClick={() => onNavigate?.(item.page)}
-        className={`w-full flex items-center rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+        role="button"
+        tabIndex={0}
+        className={`w-full flex items-center justify-between rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
           currentPage === item.page
             ? 'bg-sidebar-accent text-sidebar-accent-foreground'
             : 'text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
         }`}
       >
         <span>{item.label}</span>
-      </button>
+        {item.page === 'chat' && onToggleHistory && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleHistory()
+            }}
+            className={`ml-2 px-2 py-0.5 text-[11px] rounded-full border ${
+              historyVisible
+                ? 'border-primary/60 bg-primary/10 text-primary'
+                : 'border-sidebar-foreground/20 text-sidebar-foreground/60 hover:text-foreground'
+            }`}
+            title={historyVisible ? 'Hide history' : 'Show history'}
+          >
+            History
+          </button>
+        )}
+      </div>
     )
   }
+
+  const { toggleSidebar } = useSidebar()
 
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
-        {open && (
-          <div className="px-2 py-4 mb-4">
-            <h1 className="text-lg font-bold">🤖 Ollama Chat</h1>
-          </div>
-        )}
-
+        <div>
+          <button
+            onClick={toggleSidebar}
+            className="mb-4 flex justify-end px-2 py-1.5 hover:bg-sidebar-accent/50 rounded-md transition-colors"
+          >
+            <PanelLeftClose className="w-5 h-5 text-sidebar-foreground/60" />
+          </button>
         {Object.entries(categories).map(([key, category], idx) => {
           const Icon = category.icon
           const isExpanded = expandedCategories[key]
+          const firstItem = category.items[0]
           
           return (
             <div key={key}>
               {idx > 0 && <div className="border-b border-sidebar-foreground/12 my-2" />}
               <SidebarGroup>
               <button
-                onClick={() => toggleCategory(key)}
+                onClick={() => {
+                  if (open) {
+                    toggleCategory(key)
+                  } else if (firstItem) {
+                    onNavigate?.(firstItem.page)
+                  }
+                }}
+                title={category.label}
                 className="w-full flex items-center justify-between px-2 py-1.5 text-xs font-bold text-sidebar-foreground/80 uppercase tracking-wider hover:text-sidebar-foreground transition-colors"
               >
                 <div className="flex items-center gap-2">
@@ -152,6 +183,7 @@ export function AppSidebar({ currentPage = "chat", onNavigate }: AppSidebarProps
             </div>
           )
         })}
+        </div>
 
         {/* App Settings Section */}
         {open && (
@@ -163,6 +195,7 @@ export function AppSidebar({ currentPage = "chat", onNavigate }: AppSidebarProps
                 { label: "Models", icon: BarChart3, page: "models" },
                 { label: "Settings", icon: Settings, page: "settings" },
                 { label: "Go Online", icon: Cloud, page: "online" },
+                { label: "Train Model", icon: Brain, page: "train" },
               ].map(item => renderNavItem(item))}
             </div>
             </SidebarGroupContent>

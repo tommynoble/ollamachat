@@ -20,15 +20,6 @@ export default function CoderPage() {
 
   return (
     <div className="flex-1 flex flex-col">
-      {/* Header */}
-      <div className="border-b border-border bg-card p-6">
-        <div className="flex items-center gap-2 mb-2">
-          <Code2 className="w-6 h-6" />
-          <h2 className="text-2xl font-bold">Code Assistant</h2>
-        </div>
-        <p className="text-muted-foreground">Generate and review code with AI assistance</p>
-      </div>
-
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
